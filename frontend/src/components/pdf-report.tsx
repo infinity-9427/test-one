@@ -152,15 +152,20 @@ const styles = StyleSheet.create({
   },
   aiAnalysisSection: {
     backgroundColor: '#f8f4ff',
-    padding: 10,
+    padding: 15,
     marginBottom: 10,
     borderRadius: 6,
+    flex: 1,
+    minHeight: 600,
   },
   llmContent: {
     fontSize: 10,
-    lineHeight: 1.4,
-    color: '#4b5563',
+    lineHeight: 1.6,
+    color: '#374151',
     marginTop: 6,
+    textAlign: 'left',
+    whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word',
   },
   infoRow: {
     flexDirection: 'row',
@@ -181,97 +186,147 @@ const formatCategoryName = (category: string): string => {
   ).join(' ');
 };
 
-// New API Document Component
-const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => (
-  <Document>
-    <Page size="A4" style={styles.page}>
-      {/* Header with Logo */}
-      <View style={styles.headerContainer}>
-        <Image style={styles.logo} src="/logo-web-engine.png" />
-        <Text style={styles.header}>Website Design Analysis Report</Text>
-      </View>
+// New API Document Component - Enhanced for Multi-Page Reports
+const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => {
+  
+  // Helper function to split long content into manageable chunks for PDF pages
+  const splitContentForPages = (content: string, maxLength: number = 4000) => {
+    if (!content || content.length <= maxLength) return [content || 'No content available'];
+    
+    const chunks = [];
+    let currentChunk = '';
+    
+    // Split by sentences first, preserving punctuation and spacing
+    const sentences = content.match(/[^.!?]*[.!?]*\s*/g) || [content];
+    
+    for (const sentence of sentences) {
+      if (!sentence.trim()) continue; // Skip empty sentences
       
-      {/* URL and Basic Info */}
-      <View style={styles.compactSection}>
-        <Text style={styles.url}>{data.url}</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoItem}>
-            Completed: {new Date(data.completed_at).toLocaleDateString()}
-          </Text>
-          <Text style={styles.infoItem}>
-            Time: {new Date(data.completed_at).toLocaleTimeString()}
-          </Text>
-          <Text style={styles.infoItem}>
-            Duration: {data.analysis_duration.toFixed(1)}s
-          </Text>
+      // If adding this sentence would exceed the limit and we have content
+      if ((currentChunk + sentence).length > maxLength && currentChunk.length > 0) {
+        chunks.push(currentChunk.trim());
+        currentChunk = sentence;
+      } else {
+        currentChunk += sentence;
+      }
+    }
+    
+    // Always add the remaining content
+    if (currentChunk.trim()) {
+      chunks.push(currentChunk.trim());
+    }
+    
+    // Ensure we return at least one chunk with content
+    if (chunks.length === 0) {
+      chunks.push(content);
+    }
+    
+    return chunks;
+  };
+
+  const aiAnalysisChunks = data.ai_insights?.llm_analysis?.content 
+    ? splitContentForPages(data.ai_insights.llm_analysis.content)
+    : ['No AI analysis content available'];
+
+  return (
+    <Document>
+      {/* First Page - Summary and Scores */}
+      <Page size="A4" style={styles.page}>
+        {/* Header with Logo */}
+        <View style={styles.headerContainer}>
+          <Image style={styles.logo} src="/logo-web-engine.png" />
+          <Text style={styles.header}>Website Design Analysis Report</Text>
         </View>
-      </View>
-
-      {/* Overall Score */}
-      <View style={styles.score}>
-        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Overall Design Score</Text>
-        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#059669' }}>{data.overall_score}/100</Text>
-      </View>
-
-      {/* Score Breakdown */}
-      <View style={styles.scoreBreakdown}>
-        {Object.entries(data.scores_breakdown).map(([category, score]) => (
-          <View key={category} style={styles.scoreItem}>
-            <Text style={styles.scoreItemTitle}>{formatCategoryName(category)}</Text>
-            <Text style={styles.scoreItemValue}>{score}/100</Text>
+        
+        {/* URL and Basic Info */}
+        <View style={styles.compactSection}>
+          <Text style={styles.url}>{data.url}</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoItem}>
+              Completed: {new Date(data.completed_at).toLocaleDateString()}
+            </Text>
+            <Text style={styles.infoItem}>
+              Time: {new Date(data.completed_at).toLocaleTimeString()}
+            </Text>
+            <Text style={styles.infoItem}>
+              Duration: {data.analysis_duration.toFixed(1)}s
+            </Text>
           </View>
-        ))}
-      </View>
+        </View>
 
-      {/* Executive Summary - Strengths */}
-      <View style={styles.strengthsSection}>
-        <Text style={[styles.title, { color: '#065f46' }]}>Key Strengths</Text>
-        {data.ai_insights?.report_summary?.strengths?.slice(0, 4).map((strength: string, index: number) => (
-          <View key={index} style={styles.issueItem}>
-            <View style={[styles.recommendationBullet]} />
-            <Text style={[styles.text, { flex: 1 }]}>{strength}</Text>
-          </View>
-        )) || (
-          <Text style={styles.text}>No strengths data available</Text>
-        )}
-      </View>
+        {/* Overall Score */}
+        <View style={styles.score}>
+          <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Overall Design Score</Text>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#059669' }}>{data.overall_score}/100</Text>
+        </View>
 
-      {/* Areas for Improvement */}
-      {data.ai_insights?.report_summary?.improvement_areas && (
-        <View style={styles.improvementsSection}>
-          <Text style={[styles.title, { color: '#991b1b' }]}>Areas for Improvement</Text>
-          {data.ai_insights.report_summary.improvement_areas.slice(0, 4).map((improvement: string, index: number) => (
-            <View key={index} style={styles.issueItem}>
-              <View style={[styles.bullet]} />
-              <Text style={[styles.text, { flex: 1 }]}>{improvement}</Text>
+        {/* Score Breakdown */}
+        <View style={styles.scoreBreakdown}>
+          {Object.entries(data.scores_breakdown).map(([category, score]) => (
+            <View key={category} style={styles.scoreItem}>
+              <Text style={styles.scoreItemTitle}>{formatCategoryName(category)}</Text>
+              <Text style={styles.scoreItemValue}>{score}/100</Text>
             </View>
           ))}
         </View>
-      )}
 
-      {/* AI Analysis - Condensed */}
-      <View style={styles.aiAnalysisSection}>
-        <Text style={styles.title}>AI Visual Analysis Summary</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoItem}>Model: {data.ai_insights.llm_analysis.model_used}</Text>
-          <Text style={styles.infoItem}>
-            Confidence: {Math.round(data.ai_insights.llm_analysis.confidence_score * 100)}%
-          </Text>
+        {/* Executive Summary - Strengths */}
+        <View style={styles.strengthsSection}>
+          <Text style={[styles.title, { color: '#065f46' }]}>Key Strengths</Text>
+          {data.ai_insights?.report_summary?.strengths?.slice(0, 4).map((strength: string, index: number) => (
+            <View key={index} style={styles.issueItem}>
+              <View style={[styles.recommendationBullet]} />
+              <Text style={[styles.text, { flex: 1 }]}>{strength}</Text>
+            </View>
+          )) || (
+            <Text style={styles.text}>No strengths data available</Text>
+          )}
         </View>
-        <Text style={[styles.llmContent, { marginTop: 8 }]}>
-          {data.ai_insights.llm_analysis.content.length > 800 
-            ? data.ai_insights.llm_analysis.content.substring(0, 800) + '...'
-            : data.ai_insights.llm_analysis.content
-          }
-        </Text>
-      </View>
 
-      <Text style={styles.footer}>
-        AI-Powered Website Design Analysis • Generated by Web Engine • {new Date().toLocaleDateString()}
-      </Text>
-    </Page>
-  </Document>
-);
+        <Text style={styles.footer}>
+          AI-Powered Website Design Analysis • Generated by Web Engine • {new Date().toLocaleDateString()} • Page 1
+        </Text>
+      </Page>
+
+      {/* Additional Pages for Detailed AI Analysis */}
+      {aiAnalysisChunks.map((chunk, pageIndex) => (
+        <Page key={pageIndex} size="A4" style={styles.page}>
+          <View style={styles.headerContainer}>
+            <Text style={[styles.header, { fontSize: 18 }]}>Detailed AI Analysis </Text>
+          </View>
+          
+          <View style={styles.aiAnalysisSection}>
+            <Text style={styles.title}>Professional Design Assessment</Text>
+            {pageIndex === 0 && data.ai_insights?.llm_analysis && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoItem}>
+                  Model: {data.ai_insights.llm_analysis.model_used || 'AI Vision Analysis'}
+                </Text>
+                {data.ai_insights.llm_analysis.confidence_score && (
+                  <Text style={styles.infoItem}>
+                    Confidence: {Math.round(data.ai_insights.llm_analysis.confidence_score * 100)}%
+                  </Text>
+                )}
+                {!data.ai_insights.llm_analysis.confidence_score && (
+                  <Text style={styles.infoItem}>
+                    Analysis: Vision-based Assessment
+                  </Text>
+                )}
+              </View>
+            )}
+            <Text style={[styles.llmContent, { marginTop: 8 }]}>
+              {chunk ? chunk.replace(/\*\*(.*?)\*\*/g, '$1').replace(/#{1,6}\s/g, '') : 'No content available for this page.'}
+            </Text>
+          </View>
+
+          <Text style={styles.footer}>
+            AI-Powered Website Design Analysis • Generated by Web Engine • {new Date().toLocaleDateString()} • Page {pageIndex + 2}
+          </Text>
+        </Page>
+      ))}
+    </Document>
+  );
+};
 
 // Legacy interface for backward compatibility
 interface ReportData {

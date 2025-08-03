@@ -15,8 +15,9 @@ from colorthief import ColorThief
 from PIL import Image
 
 from ..core.settings import settings
-from .prompts import VisionAnalysisPrompts
+from .prompts import VisionAnalysisPrompts, PromptConfig
 from .weights_config import weights_config
+from ..utils.timezone import get_colombia_time, format_colombia_time_short
 
 
 class DesignMetrics:
@@ -648,11 +649,16 @@ class OllamaClient:
             print(f"Image encoding error for {image_path}: {e}")
             raise Exception(f"Failed to prepare screenshot for vision analysis: {str(e)}")
     
-    async def generate_vision_analysis(self, prompt: str, image_path: str, max_tokens: int = 500) -> str:
-        """Generate analysis using Ollama vision model with image - OPTIMIZED FOR SPEED."""
+    async def generate_vision_analysis(self, prompt: str, image_path: str, analysis_type: str = "pdf_report") -> str:
+        """Generate analysis using Ollama vision model with image - OPTIMIZED FOR COMPREHENSIVE ANALYSIS."""
         vision_start = datetime.now()
+        
+        # Get configuration for this analysis type
+        config = PromptConfig.get_token_limit(analysis_type)
+        min_length = PromptConfig.get_min_length(analysis_type)
+        
         try:
-            print(f"Starting vision analysis with image: {image_path}")
+            print(f"Starting vision analysis with image: {image_path} (type: {analysis_type}, max_tokens: {config})")
             
             # Encode image to base64 with validation and optimization
             encoding_start = datetime.now()
@@ -660,18 +666,18 @@ class OllamaClient:
             encoding_time = (datetime.now() - encoding_start).total_seconds()
             print(f"Image encoding completed in {encoding_time:.2f}s")
             
-            # Prepare payload for vision model - MAXIMUM SPEED OPTIMIZATIONS
+            # Prepare payload for vision model - OPTIMIZED FOR COMPREHENSIVE PDF REPORTS
             payload = {
                 "model": self.model,
                 "prompt": prompt,
                 "images": [image_base64],
                 "stream": False,
                 "options": {
-                    "temperature": 0.05,  # Minimal randomness for speed
-                    "num_predict": 300,   # Shorter responses for speed
-                    "top_p": 0.5,         # More focused responses
-                    "repeat_penalty": 1.0, # No penalty calculation overhead
-                    "num_ctx": 1024,      # Smaller context window
+                    "temperature": 0.1,   # Low randomness for consistent analysis
+                    "num_predict": config,  # Use configured token limit
+                    "top_p": 0.8,         # Balanced focus for detailed analysis
+                    "repeat_penalty": 1.1, # Slight penalty to avoid repetition
+                    "num_ctx": 4096,      # Larger context window for complex prompts
                     "num_gpu": 1,         # Force GPU usage
                     "num_thread": 8,      # More CPU threads
                     "use_mmap": True,     # Memory mapping for speed
@@ -708,8 +714,8 @@ class OllamaClient:
             if not analysis_content:
                 raise Exception("Vision model returned empty response - may not be processing the screenshot")
             
-            if len(analysis_content) < 50:  # Reduced minimum from 100 for faster responses
-                raise Exception("Vision model returned insufficient analysis - may not be seeing the screenshot properly")
+            if len(analysis_content) < min_length:  # Use configured minimum length
+                raise Exception(f"Vision model returned insufficient analysis ({len(analysis_content)} chars, expected {min_length}+) - may not be seeing the screenshot properly")
             
             # Check if response contains vision-specific observations
             vision_indicators = [
@@ -766,7 +772,7 @@ class AIAnalysisService:
             Complete analysis results with scores and recommendations
         """
         try:
-            analysis_start = datetime.now()
+            analysis_start = get_colombia_time()
             
             # Get screenshot path (prefer desktop)
             screenshot_path = ""
@@ -830,12 +836,13 @@ class AIAnalysisService:
                 print(f"Starting professional design analysis for {url} with screenshot: {desktop_screenshot_path}")
                 prompt = self.prompt_service.create_pdf_report_prompt(url, metrics)
                 llm_analysis = await self.ollama_client.generate_vision_analysis(
-                    prompt, desktop_screenshot_path
+                    prompt, desktop_screenshot_path, analysis_type="pdf_report"
                 )
                 
                 # Verify we got meaningful analysis content
-                if not llm_analysis or len(llm_analysis.strip()) < 50:
-                    raise Exception("Vision analysis returned insufficient content - AI may not be seeing the screenshot properly")
+                min_expected_length = PromptConfig.get_min_length("pdf_report")
+                if not llm_analysis or len(llm_analysis.strip()) < min_expected_length:
+                    raise Exception(f"Vision analysis returned insufficient content ({len(llm_analysis.strip()) if llm_analysis else 0} chars, expected {min_expected_length}+) - AI may not be seeing the screenshot properly")
                     
             except Exception as e:
                 llm_error = str(e)
@@ -853,8 +860,8 @@ class AIAnalysisService:
             analysis_result = {
                 "analysis_id": f"analysis_{int(analysis_start.timestamp())}",
                 "url": url,
-                "analyzed_at": analysis_start.isoformat(),
-                "analysis_duration": (datetime.now() - analysis_start).total_seconds(),
+                "analyzed_at": format_colombia_time_short(analysis_start),
+                "analysis_duration": (get_colombia_time() - analysis_start).total_seconds(),
                 "status": "completed",
                 
                 # Main Scores for Report Header

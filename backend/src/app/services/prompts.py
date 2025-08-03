@@ -1,8 +1,62 @@
 from typing import Any
 
 
+class PromptConfig:
+    """Configuration for AI analysis prompts and limits."""
+    
+    # Token limits for different analysis types
+    PDF_REPORT_TOKEN_LIMIT = 2500
+    QUICK_ANALYSIS_TOKEN_LIMIT = 800
+    DETAILED_ANALYSIS_TOKEN_LIMIT = 1800
+    
+    # Response length guidelines (characters)
+    PDF_REPORT_MIN_LENGTH = 1500
+    PDF_REPORT_TARGET_LENGTH = 3000
+    QUICK_ANALYSIS_MIN_LENGTH = 400
+    
+    # Response structure requirements
+    PDF_SECTIONS_REQUIRED = [
+        "EXECUTIVE SUMMARY",
+        "TYPOGRAPHY & READABILITY", 
+        "COLOR & VISUAL DESIGN",
+        "LAYOUT & STRUCTURE",
+        "RESPONSIVENESS & UX",
+        "ACCESSIBILITY & COMPLIANCE",
+        "ACTIONABLE RECOMMENDATIONS"
+    ]
+    
+    @classmethod
+    def get_token_limit(cls, analysis_type: str = "pdf_report") -> int:
+        """Get token limit for specific analysis type."""
+        limits = {
+            "pdf_report": cls.PDF_REPORT_TOKEN_LIMIT,
+            "quick": cls.QUICK_ANALYSIS_TOKEN_LIMIT,
+            "detailed": cls.DETAILED_ANALYSIS_TOKEN_LIMIT
+        }
+        return limits.get(analysis_type, cls.PDF_REPORT_TOKEN_LIMIT)
+    
+    @classmethod
+    def get_min_length(cls, analysis_type: str = "pdf_report") -> int:
+        """Get minimum expected response length."""
+        lengths = {
+            "pdf_report": cls.PDF_REPORT_MIN_LENGTH,
+            "quick": cls.QUICK_ANALYSIS_MIN_LENGTH
+        }
+        return lengths.get(analysis_type, cls.PDF_REPORT_MIN_LENGTH)
+
+
 class VisionAnalysisPrompts:
     """Collection of prompts for AI vision analysis."""
+    
+    @staticmethod
+    def get_analysis_config(analysis_type: str = "pdf_report") -> dict:
+        """Get configuration for specific analysis type."""
+        return {
+            "token_limit": PromptConfig.get_token_limit(analysis_type),
+            "min_length": PromptConfig.get_min_length(analysis_type),
+            "target_length": getattr(PromptConfig, f"{analysis_type.upper()}_TARGET_LENGTH", 
+                                   PromptConfig.PDF_REPORT_TARGET_LENGTH)
+        }
     
     @staticmethod
     def create_pdf_report_prompt(url: str, metrics: Any) -> str:
@@ -27,6 +81,11 @@ class VisionAnalysisPrompts:
         prompt = f"""You are a Senior UI/UX Design Consultant creating a comprehensive design audit report for: {url}
 
 **CRITICAL**: Analyze the provided screenshot image and create a professional report suitable for PDF generation.
+
+**RESPONSE LENGTH REQUIREMENTS**:
+- Target response: {PromptConfig.PDF_REPORT_TARGET_LENGTH} characters ({PromptConfig.PDF_REPORT_TOKEN_LIMIT} tokens max)
+- Minimum response: {PromptConfig.PDF_REPORT_MIN_LENGTH} characters required
+- Be comprehensive but concise - every word must add value
 
 ## REPORT STRUCTURE REQUIRED:
 
@@ -89,13 +148,19 @@ Provide specific, prioritized improvement suggestions:
 - Overall Design Rating: X/10
 - Professional Readiness: [Ready/Needs Work/Major Revision Required]
 
+**SECTION LENGTH GUIDELINES**:
+- Executive Summary: 3-4 sentences per point (150-200 characters)
+- Each Category Analysis: 2-3 detailed observations (200-300 characters)
+- Recommendations: Specific actionable items (100-150 characters each)
+- Total sections must cover all required categories above
+
 **FORMATTING REQUIREMENTS**:
 - Use markdown headers (##, ###) for sections
 - Use bullet points for lists
 - Be specific and actionable in all recommendations
 - Include visual details you observe in the screenshot
-- Keep each section concise but comprehensive
 - Write in professional consulting tone
+- MUST reach minimum {PromptConfig.PDF_REPORT_MIN_LENGTH} characters total
 
 **IMPORTANT**: Base all analysis on actual visual observation of the screenshot. Reference specific colors, spacing, text, and design elements you can see.
 
@@ -126,6 +191,8 @@ Provide a complete, professional analysis suitable for client presentation."""
         prompt = f"""You are an expert UI/UX designer with advanced vision capabilities. You are analyzing a SCREENSHOT of this website: {url}
 
 CRITICAL: You MUST look at and analyze the provided screenshot image. Your analysis should be based entirely on what you can SEE in the screenshot.
+
+**RESPONSE LENGTH**: Target {PromptConfig.get_min_length('quick')}-{PromptConfig.DETAILED_ANALYSIS_TOKEN_LIMIT} characters, maximum {PromptConfig.get_token_limit('detailed')} tokens.
 
 VISUAL ANALYSIS REQUIREMENTS (based on what you SEE in the screenshot):
 
@@ -275,9 +342,14 @@ Target: 500-700 words with precise visual observations."""
             Formatted quick prompt string for basic vision analysis
         """
         
+        config = PromptConfig.get_token_limit("quick")
+        min_length = PromptConfig.get_min_length("quick")
+        
         prompt = f"""Analyze this website screenshot for: {url}
 
 You are a UX expert. Look at the screenshot and provide:
+
+**RESPONSE LIMITS**: {min_length}-{config*4} characters, maximum {config} tokens.
 
 1. **Visual Confirmation**: Confirm you can see the screenshot and describe what's visible
 2. **Quick Assessment**: Rate the design quality (1-10) based on:
@@ -287,9 +359,7 @@ You are a UX expert. Look at the screenshot and provide:
 3. **Key Observations**: 2-3 specific visual elements you notice
 4. **Improvement Suggestion**: 1 main recommendation
 
-Keep it concise but demonstrate you're actually seeing the screenshot by mentioning specific visual details.
-
-Limit: 200 words."""
+Keep it concise but demonstrate you're actually seeing the screenshot by mentioning specific visual details."""
 
         return prompt
 
@@ -315,5 +385,5 @@ Focus ONLY on what you can actually SEE and READ in the screenshot.
 """
 
 
-# Export the main prompt class for easy importing
-__all__ = ['VisionAnalysisPrompts', 'PromptTemplates']
+# Export the main classes for easy importing
+__all__ = ['VisionAnalysisPrompts', 'PromptTemplates', 'PromptConfig']

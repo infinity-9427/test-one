@@ -18,6 +18,7 @@ import aiofiles
 
 from ..core.settings import settings
 from .cloudinary import cloudinary_service
+from ..utils.timezone import get_colombia_time, format_colombia_time
 
 
 class ScreenshotCache:
@@ -76,7 +77,7 @@ class ScreenshotCache:
             
             cache_data = {
                 **screenshot_data,
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': format_colombia_time(get_colombia_time()),
                 'cache_key': cache_key
             }
             
@@ -176,7 +177,7 @@ class ScreenshotService:
                     await page.wait_for_load_state('networkidle')
                     
                     # Take screenshot with consistent dimensions
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    timestamp = get_colombia_time().strftime("%Y%m%d_%H%M%S")
                     filename = f"screenshot_{timestamp}_{viewport['width']}x{viewport['height']}.png"
                     local_path = self.cache.cache_dir / filename if self.cache else Path(f"./screenshots/{filename}")
                     local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -207,7 +208,7 @@ class ScreenshotService:
                         "url": page.url,
                         "viewport": viewport,
                         "screenshot_size": len(screenshot_bytes),
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": format_colombia_time(get_colombia_time())
                     }
                     
                     # Upload to Cloudinary automatically (if enabled and requested)
@@ -219,7 +220,7 @@ class ScreenshotService:
                                 "viewport_type": viewport_type,
                                 "viewport": viewport,
                                 "page_metrics": page_metrics,
-                                "captured_at": datetime.now().isoformat()
+                                "captured_at": format_colombia_time(get_colombia_time())
                             }
                             
                             cloudinary_result = await cloudinary_service.upload_screenshot(
@@ -299,7 +300,7 @@ class ScreenshotService:
                 "local_path": local_path,
                 "page_metrics": page_metrics,
                 "from_cache": False,
-                "captured_at": datetime.now().isoformat(),
+                "captured_at": format_colombia_time(get_colombia_time()),
                 **cloudinary_data  # Include Cloudinary data (cloudinary_url, public_id, etc.)
             }
             
@@ -334,7 +335,7 @@ class ScreenshotService:
             
             result = {
                 "url": url,
-                "captured_at": datetime.now().isoformat(),
+                "captured_at": format_colombia_time(get_colombia_time()),
                 "desktop": desktop_result,
                 "mobile": mobile_result,
                 "errors": {}

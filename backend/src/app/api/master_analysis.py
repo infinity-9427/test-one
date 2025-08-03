@@ -8,15 +8,15 @@ from pydantic import BaseModel, HttpUrl
 from typing import Dict, Any, Optional, List
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from ..services.screenshot_storage import screenshot_storage_service
 from ..services.ai_analysis import ai_analysis_service
 from ..services.cloudinary import cloudinary_service
 from ..services.google_sheets import google_sheets_service
+from ..utils.timezone import get_colombia_time, format_colombia_time_short
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/api/v1/master", tags=["master-orchestrator"])
 
 
@@ -71,8 +71,8 @@ async def master_analyze(
     AI analysis and cloud storage are always enabled for complete functionality.
     Perfect for frontend integration - just send URL, get everything back.
     """
-    analysis_id = f"master_{int(datetime.now().timestamp())}"
-    start_time = datetime.now()
+    analysis_id = f"master_{int(get_colombia_time().timestamp())}"
+    start_time = get_colombia_time()
     url_str = str(request.url)
     
     # Initialize result structure
@@ -221,9 +221,9 @@ async def master_analyze(
             logger.info(f"[{analysis_id}] Background task scheduled successfully")
         
         # Step 4: Finalize result
-        end_time = datetime.now()
+        end_time = get_colombia_time()
         result.analysis_duration = (end_time - start_time).total_seconds()
-        result.completed_at = end_time.isoformat()
+        result.completed_at = format_colombia_time_short(end_time)
         result.status = "completed" if good_screenshots else "failed"
         
         logger.info(f"[{analysis_id}] Master analysis completed in {result.analysis_duration:.2f}s")
@@ -232,9 +232,9 @@ async def master_analyze(
         
     except Exception as e:
         logger.error(f"[{analysis_id}] Master analysis failed: {e}")
-        end_time = datetime.now()
+        end_time = get_colombia_time()
         result.analysis_duration = (end_time - start_time).total_seconds()
-        result.completed_at = end_time.isoformat()
+        result.completed_at = format_colombia_time_short(end_time)
         result.status = "failed"
         result.errors["master_analysis"] = str(e)
         return result
@@ -276,7 +276,7 @@ async def _log_to_sheets_background(
         analysis_result = {
             "analysis_id": analysis_id,
             "url": url,
-            "analyzed_at": ai_insights.get("analyzed_at") if ai_insights else datetime.now().isoformat(),
+            "analyzed_at": ai_insights.get("analyzed_at") if ai_insights else format_colombia_time_short(get_colombia_time()),
             "overall_score": ai_insights.get("overall_score", 0) if ai_insights else 0,
             "scores_breakdown": ai_insights.get("scores_breakdown", {}) if ai_insights else {},
             "screenshots": screenshot_data,
