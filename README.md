@@ -128,6 +128,12 @@ NEXT_PUBLIC_GA_ID=your_ga_id
 
 ### 3. Docker Setup & Installation
 
+**Note: This project uses `pnpm` as the package manager for the frontend. Make sure you have pnpm installed globally:**
+
+```bash
+npm install -g pnpm
+```
+
 #### Backend Setup (Required)
 ```bash
 # Navigate to backend directory
@@ -149,14 +155,10 @@ docker compose logs -f
 # Navigate to frontend directory
 cd frontend
 
-# Install dependencies
-npm install
-# or
+# Install dependencies (pnpm is required)
 pnpm install
 
 # Start development server
-npm run dev
-# or
 pnpm dev
 ```
 
@@ -176,7 +178,7 @@ docker compose up -d
 ### 2. Start Frontend (Optional)
 ```bash
 cd frontend
-npm run dev
+pnpm dev
 ```
 Access at: `http://localhost:3000`
 
@@ -250,7 +252,7 @@ python test_analysis.py
 ```bash
 cd frontend
 
-# Install dependencies
+# Install dependencies (pnpm required)
 pnpm install
 
 # Start development

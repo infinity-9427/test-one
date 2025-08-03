@@ -38,7 +38,7 @@ export default function Error({
                     Oops! Something went wrong
                   </h1>
                   <p className="text-lg text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                    We encountered an unexpected error. Don't worry, our team has been notified and we're working on a fix.
+                    We encountered an unexpected error. Don&apos;t worry, our team has been notified and we&apos;re working on a fix.
                   </p>
                 </div>
 
@@ -108,7 +108,7 @@ export default function Error({
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">Check your connection</p>
-                        <p>Make sure you're connected to the internet</p>
+                        <p>Make sure you&apos;re connected to the internet</p>
                       </div>
                     </div>
                   </div>

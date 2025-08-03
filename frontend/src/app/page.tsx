@@ -1,16 +1,32 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PDFReport, ReportData } from '@/components/pdf-report';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAnalysis } from '@/hooks/useAnalysis';
+import AnalysisProgress from '@/components/analysis-progress';
+import AnalysisResults from '@/components/analysis-results';
+import AnalysisError from '@/components/analysis-error';
 
 export default function Home() {
   const [url, setUrl] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [reportData, setReportData] = useState<ReportData | null>(null);
-  const [error, setError] = useState('');
+  const {
+    isAnalyzing,
+    analysisProgress,
+    currentAnalysis,
+    error,
+    backendHealth,
+    analyzeWebsite,
+    clearError,
+    resetAnalysis,
+    checkBackendHealth
+  } = useAnalysis();
+
+  // Check backend health on component mount
+  useEffect(() => {
+    checkBackendHealth();
+  }, [checkBackendHealth]);
 
   const validateUrl = (inputUrl: string): boolean => {
     try {
@@ -23,88 +39,114 @@ export default function Home() {
 
   const handleAnalyze = async () => {
     if (!url.trim()) {
-      setError('Please enter a URL');
       return;
     }
 
-    if (!validateUrl(url)) {
-      setError('Please enter a valid URL (include http:// or https://)');
+    let processedUrl = url.trim();
+    
+    // Add protocol if missing
+    if (!processedUrl.match(/^https?:\/\//)) {
+      processedUrl = 'https://' + processedUrl;
+    }
+
+    if (!validateUrl(processedUrl)) {
       return;
     }
 
-    setError('');
-    setIsAnalyzing(true);
-
-    try {
-      // Simulate the analysis process with potential failure
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate occasional failures for demo purposes
-          if (Math.random() < 0.1) { // 10% chance of failure
-            reject(new Error('Failed to connect to the website'));
-          } else {
-            resolve(null);
-          }
-        }, 3000);
-      });
-
-      // Mock report data - in real implementation, this would come from your analysis engine
-      const mockReportData: ReportData = {
-        url: url,
-        overallScore: 78,
-        typography: {
-          score: 85,
-          issues: [
-            'Small font size detected on mobile devices',
-            'Insufficient line height in paragraph text'
-          ],
-          recommendations: [
-            'Increase minimum font size to 16px for mobile',
-            'Adjust line height to 1.5 for better readability'
-          ]
-        },
-        color: {
-          score: 72,
-          issues: [
-            'Low contrast ratio between text and background',
-            'Missing focus indicators on interactive elements'
-          ],
-          recommendations: [
-            'Increase contrast ratio to meet WCAG AA standards',
-            'Add visible focus states for keyboard navigation'
-          ]
-        },
-        layout: {
-          score: 76,
-          issues: [
-            'Inconsistent spacing between sections',
-            'No clear visual hierarchy'
-          ],
-          recommendations: [
-            'Implement consistent spacing system',
-            'Use typography scale to establish hierarchy'
-          ]
-        },
-        timestamp: new Date()
-      };
-
-      setReportData(mockReportData);
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(`Analysis failed: ${err.message}. Please check the URL and try again.`);
-      } else {
-        setError('Failed to analyze the website. Please try again.');
-      }
-    } finally {
-      setIsAnalyzing(false);
-    }
+    await analyzeWebsite(processedUrl, {
+      autoLogToSheets: true,
+      includeMobile: true
+    });
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUrl(e.target.value);
-    if (error) setError('');
+    if (error) clearError();
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && url.trim() && !isAnalyzing) {
+      handleAnalyze();
+    }
+  };
+
+  const handleStartNew = () => {
+    resetAnalysis();
+    setUrl('');
+  };
+
+  // Show results if we have a completed analysis
+  if (currentAnalysis && !isAnalyzing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-6xl mx-auto">
+            <AnalysisResults 
+              analysis={currentAnalysis} 
+              onStartNew={handleStartNew}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error && !isAnalyzing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
+                Design Scoring & Reporting Tool
+              </h1>
+              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                AI-powered website design analysis with professional insights
+              </p>
+            </div>
+
+            <AnalysisError 
+              error={error} 
+              onRetry={() => {
+                clearError();
+                if (url.trim()) {
+                  handleAnalyze();
+                }
+              }}
+              onReset={handleStartNew}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show analysis progress
+  if (isAnalyzing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
+                Design Scoring & Reporting Tool
+              </h1>
+              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                Analyzing <span className="font-semibold text-blue-600 dark:text-blue-400">{url}</span>
+              </p>
+            </div>
+
+            <AnalysisProgress progress={analysisProgress} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show main input form (default state)
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-16">
@@ -112,12 +154,32 @@ export default function Home() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              Design Scoring & Reporting Tool
+              AI-Powered Design Analysis
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Analyze any website's design with AI-powered assessment and get professional reports
+              Get professional insights on your website&apos;s design with comprehensive AI analysis and actionable recommendations
             </p>
           </div>
+
+          {/* Backend Health Status */}
+          {backendHealth.status !== 'unknown' && (
+            <div className="mb-6">
+              <div className={`p-3 rounded-lg text-center text-sm ${
+                backendHealth.status === 'healthy' 
+                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+              }`}>
+                <span className="font-medium">
+                  {backendHealth.status === 'healthy' ? '✅ Service Online' : '❌ Service Unavailable'}
+                </span>
+                {backendHealth.lastChecked && (
+                  <span className="ml-2 opacity-75">
+                    • Last checked: {backendHealth.lastChecked.toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Main Analysis Card */}
           <Card className="mb-8 shadow-lg">
@@ -131,30 +193,25 @@ export default function Home() {
                     <Input
                       id="url-input"
                       type="url"
-                      placeholder="https://example.com"
+                      placeholder="https://example.com or example.com"
                       value={url}
                       onChange={handleUrlChange}
+                      onKeyPress={handleKeyPress}
                       className="h-12 text-base flex-1"
                       disabled={isAnalyzing}
                     />
                     <Button 
                       onClick={handleAnalyze}
-                      disabled={isAnalyzing || !url.trim()}
+                      disabled={isAnalyzing || !url.trim() || backendHealth.status === 'unhealthy'}
                       className="h-12 px-8 bg-blue-600 hover:bg-blue-700"
                     >
-                      {isAnalyzing ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                          Analyzing...
-                        </div>
-                      ) : (
-                        'Analyze'
-                      )}
+                      Analyze Website
                     </Button>
                   </div>
-                  {error && (
+                  
+                  {backendHealth.status === 'unhealthy' && (
                     <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
-                      {error}
+                      ⚠️ Analysis service is currently unavailable. Please try again later.
                     </p>
                   )}
                 </div>
@@ -163,81 +220,78 @@ export default function Home() {
                 <div className="grid md:grid-cols-3 gap-4 pt-4">
                   <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div className="text-2xl mb-2">📸</div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Screenshot</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">High-quality capture</p>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Screenshot Capture</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">High-quality desktop & mobile screenshots</p>
                   </div>
                   <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <div className="text-2xl mb-2">🎨</div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">AI Analysis</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Design evaluation</p>
+                    <div className="text-2xl mb-2">🤖</div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">AI Vision Analysis</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Advanced ML models analyze design</p>
                   </div>
                   <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                     <div className="text-2xl mb-2">📊</div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Reports</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Professional PDF</p>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Professional Reports</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Downloadable PDF with insights</p>
+                  </div>
+                </div>
+
+                {/* Analysis Categories */}
+                <div className="mt-8">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 text-center">
+                    What We Analyze
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    {[
+                      { icon: '🎨', label: 'Design Principles' },
+                      { icon: '♿', label: 'Accessibility' },
+                      { icon: '📐', label: 'Visual Hierarchy' },
+                      { icon: '🌈', label: 'Color Theory' },
+                      { icon: '📝', label: 'Typography' },
+                      { icon: '📋', label: 'Layout & Composition' },
+                      { icon: '👥', label: 'User Experience' },
+                      { icon: '📱', label: 'Mobile Responsiveness' }
+                    ].map((item, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded text-gray-700 dark:text-gray-300">
+                        <span>{item.icon}</span>
+                        <span className="text-xs">{item.label}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Results Section */}
-          {reportData && (
-            <Card className="shadow-lg">
-              <CardHeader className="text-center">
-                <CardTitle className="text-3xl text-green-600 dark:text-green-400 flex items-center justify-center gap-2">
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  Analysis Complete
-                </CardTitle>
-                <CardDescription className="text-lg">
-                  Your design analysis is ready
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                {/* Overall Score */}
-                <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Overall Score</h3>
-                  <div className="text-5xl font-bold text-green-600 dark:text-green-400">
-                    {reportData.overallScore}/100
-                  </div>
+          {/* How it Works */}
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-center">How It Works</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-4 gap-6">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-3">1</div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Enter URL</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Provide the website URL you want to analyze</p>
                 </div>
-
-                {/* Score Breakdown */}
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="text-center p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Typography</h4>
-                    <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                      {reportData.typography.score}
-                    </p>
-                  </div>
-                  <div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Color & Accessibility</h4>
-                    <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-                      {reportData.color.score}
-                    </p>
-                  </div>
-                  <div className="text-center p-6 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Layout & Structure</h4>
-                    <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
-                      {reportData.layout.score}
-                    </p>
-                  </div>
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-green-500 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-3">2</div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">AI Analysis</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Our AI captures screenshots and analyzes design elements</p>
                 </div>
-
-                {/* Download Report */}
-                <div className="text-center pt-4 border-t">
-                  <PDFReport data={reportData} />
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                    Download detailed PDF report with recommendations
-                  </p>
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-purple-500 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-3">3</div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Generate Insights</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Receive detailed scores and actionable recommendations</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-orange-500 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-3">4</div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Download Report</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Get a professional PDF report with all findings</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

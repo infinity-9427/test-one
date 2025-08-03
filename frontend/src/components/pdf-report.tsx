@@ -1,126 +1,279 @@
 'use client'
 
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
+import { AnalysisResponse } from '@/lib/api-client';
 
 // Create styles for the PDF
 const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
     backgroundColor: '#ffffff',
-    padding: 40,
+    padding: 30,
     fontFamily: 'Helvetica',
   },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottom: '2px solid #e5e7eb',
+  },
+  logo: {
+    width: 40,
+    height: 40,
+    marginRight: 15,
+  },
   header: {
-    fontSize: 28,
-    marginBottom: 30,
-    textAlign: 'center',
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#1e40af',
     letterSpacing: 0.5,
   },
   section: {
-    margin: 12,
-    padding: 16,
-    borderRadius: 8,
+    margin: 8,
+    padding: 12,
+    borderRadius: 6,
+    backgroundColor: '#f8fafc',
+  },
+  compactSection: {
+    margin: 6,
+    padding: 10,
+    borderRadius: 6,
     backgroundColor: '#f8fafc',
   },
   title: {
-    fontSize: 20,
-    marginBottom: 12,
+    fontSize: 16,
+    marginBottom: 8,
     fontWeight: 'bold',
     color: '#1f2937',
-    borderBottom: '2px solid #e5e7eb',
-    paddingBottom: 8,
+    borderBottom: '1px solid #e5e7eb',
+    paddingBottom: 6,
   },
   subtitle: {
-    fontSize: 16,
-    marginBottom: 10,
+    fontSize: 14,
+    marginBottom: 8,
     fontWeight: 'bold',
     color: '#374151',
-    marginTop: 12,
+    marginTop: 8,
   },
   text: {
-    fontSize: 12,
-    lineHeight: 1.6,
+    fontSize: 11,
+    lineHeight: 1.4,
     color: '#4b5563',
-    marginBottom: 6,
-    paddingLeft: 12,
+    marginBottom: 4,
+    paddingLeft: 8,
   },
   score: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#059669',
     textAlign: 'center',
-    marginVertical: 20,
-    padding: 16,
+    marginVertical: 15,
+    padding: 12,
     backgroundColor: '#f0fdf4',
-    borderRadius: 8,
+    borderRadius: 6,
   },
   url: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#3b82f6',
-    marginBottom: 20,
+    marginBottom: 12,
     textAlign: 'center',
     fontWeight: 'bold',
   },
   footer: {
     position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
+    bottom: 25,
+    left: 30,
+    right: 30,
     textAlign: 'center',
-    fontSize: 10,
+    fontSize: 9,
     color: '#6b7280',
     borderTop: '1px solid #e5e7eb',
-    paddingTop: 12,
+    paddingTop: 8,
   },
   scoreBreakdown: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginVertical: 20,
-    padding: 16,
+    flexWrap: 'wrap',
+    marginVertical: 12,
+    padding: 12,
     backgroundColor: '#f8fafc',
-    borderRadius: 8,
+    borderRadius: 6,
   },
   scoreItem: {
+    width: '25%',
     textAlign: 'center',
-    flex: 1,
+    marginBottom: 6,
   },
   scoreItemTitle: {
-    fontSize: 12,
+    fontSize: 9,
     color: '#6b7280',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   scoreItemValue: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#1f2937',
   },
   issueItem: {
     flexDirection: 'row',
-    marginBottom: 6,
-    paddingLeft: 12,
+    marginBottom: 4,
+    paddingLeft: 8,
   },
   bullet: {
-    width: 4,
-    height: 4,
+    width: 3,
+    height: 3,
     borderRadius: 2,
     backgroundColor: '#ef4444',
-    marginRight: 8,
-    marginTop: 6,
+    marginRight: 6,
+    marginTop: 5,
   },
   recommendationBullet: {
-    width: 4,
-    height: 4,
+    width: 3,
+    height: 3,
     borderRadius: 2,
     backgroundColor: '#10b981',
-    marginRight: 8,
+    marginRight: 6,
+    marginTop: 5,
+  },
+  strengthsSection: {
+    backgroundColor: '#f0fdf4',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 6,
+  },
+  improvementsSection: {
+    backgroundColor: '#fef3f2',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 6,
+  },
+  aiAnalysisSection: {
+    backgroundColor: '#f8f4ff',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 6,
+  },
+  llmContent: {
+    fontSize: 10,
+    lineHeight: 1.4,
+    color: '#4b5563',
     marginTop: 6,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  infoItem: {
+    fontSize: 10,
+    color: '#6b7280',
+    textAlign: 'center',
   },
 });
 
+// Helper function to format category names
+const formatCategoryName = (category: string): string => {
+  return category.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+};
+
+// New API Document Component
+const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => (
+  <Document>
+    <Page size="A4" style={styles.page}>
+      {/* Header with Logo */}
+      <View style={styles.headerContainer}>
+        <Image style={styles.logo} src="/logo-web-engine.png" />
+        <Text style={styles.header}>Website Design Analysis Report</Text>
+      </View>
+      
+      {/* URL and Basic Info */}
+      <View style={styles.compactSection}>
+        <Text style={styles.url}>{data.url}</Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoItem}>
+            Completed: {new Date(data.completed_at).toLocaleDateString()}
+          </Text>
+          <Text style={styles.infoItem}>
+            Time: {new Date(data.completed_at).toLocaleTimeString()}
+          </Text>
+          <Text style={styles.infoItem}>
+            Duration: {data.analysis_duration.toFixed(1)}s
+          </Text>
+        </View>
+      </View>
+
+      {/* Overall Score */}
+      <View style={styles.score}>
+        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Overall Design Score</Text>
+        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#059669' }}>{data.overall_score}/100</Text>
+      </View>
+
+      {/* Score Breakdown */}
+      <View style={styles.scoreBreakdown}>
+        {Object.entries(data.scores_breakdown).map(([category, score]) => (
+          <View key={category} style={styles.scoreItem}>
+            <Text style={styles.scoreItemTitle}>{formatCategoryName(category)}</Text>
+            <Text style={styles.scoreItemValue}>{score}/100</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Executive Summary - Strengths */}
+      <View style={styles.strengthsSection}>
+        <Text style={[styles.title, { color: '#065f46' }]}>Key Strengths</Text>
+        {data.ai_insights?.report_summary?.strengths?.slice(0, 4).map((strength: string, index: number) => (
+          <View key={index} style={styles.issueItem}>
+            <View style={[styles.recommendationBullet]} />
+            <Text style={[styles.text, { flex: 1 }]}>{strength}</Text>
+          </View>
+        )) || (
+          <Text style={styles.text}>No strengths data available</Text>
+        )}
+      </View>
+
+      {/* Areas for Improvement */}
+      {data.ai_insights?.report_summary?.improvement_areas && (
+        <View style={styles.improvementsSection}>
+          <Text style={[styles.title, { color: '#991b1b' }]}>Areas for Improvement</Text>
+          {data.ai_insights.report_summary.improvement_areas.slice(0, 4).map((improvement: string, index: number) => (
+            <View key={index} style={styles.issueItem}>
+              <View style={[styles.bullet]} />
+              <Text style={[styles.text, { flex: 1 }]}>{improvement}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* AI Analysis - Condensed */}
+      <View style={styles.aiAnalysisSection}>
+        <Text style={styles.title}>AI Visual Analysis Summary</Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoItem}>Model: {data.ai_insights.llm_analysis.model_used}</Text>
+          <Text style={styles.infoItem}>
+            Confidence: {Math.round(data.ai_insights.llm_analysis.confidence_score * 100)}%
+          </Text>
+        </View>
+        <Text style={[styles.llmContent, { marginTop: 8 }]}>
+          {data.ai_insights.llm_analysis.content.length > 800 
+            ? data.ai_insights.llm_analysis.content.substring(0, 800) + '...'
+            : data.ai_insights.llm_analysis.content
+          }
+        </Text>
+      </View>
+
+      <Text style={styles.footer}>
+        AI-Powered Website Design Analysis • Generated by Web Engine • {new Date().toLocaleDateString()}
+      </Text>
+    </Page>
+  </Document>
+);
+
+// Legacy interface for backward compatibility
 interface ReportData {
   url: string;
   overallScore: number;
@@ -142,25 +295,29 @@ interface ReportData {
   timestamp: Date;
 }
 
-// PDF Document Component
-const ReportDocument: React.FC<{ data: ReportData }> = ({ data }) => (
+// Legacy PDF Document Component
+const LegacyReportDocument: React.FC<{ data: ReportData }> = ({ data }) => (
   <Document>
     <Page size="A4" style={styles.page}>
-      <Text style={styles.header}>Website Design Scoring Report</Text>
+      {/* Header with Logo */}
+      <View style={styles.headerContainer}>
+        <Image style={styles.logo} src="/logo-web-engine.png" />
+        <Text style={styles.header}>Website Design Scoring Report</Text>
+      </View>
       
-      <View style={styles.section}>
+      <View style={styles.compactSection}>
         <Text style={styles.url}>{data.url}</Text>
-        <Text style={[styles.text, { textAlign: 'center', marginBottom: 0 }]}>
+        <Text style={[styles.infoItem, { textAlign: 'center' }]}>
           Generated on: {data.timestamp.toLocaleDateString()} at {data.timestamp.toLocaleTimeString()}
         </Text>
       </View>
 
       <View style={styles.score}>
-        <Text style={{ fontSize: 14, color: '#6b7280', marginBottom: 8 }}>Overall Design Score</Text>
-        <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#059669' }}>{data.overallScore}/100</Text>
+        <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Overall Design Score</Text>
+        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#059669' }}>{data.overallScore}/100</Text>
       </View>
 
-      {/* Score Breakdown */}
+      {/* Legacy score breakdown */}
       <View style={styles.scoreBreakdown}>
         <View style={styles.scoreItem}>
           <Text style={styles.scoreItemTitle}>Typography</Text>
@@ -176,82 +333,57 @@ const ReportDocument: React.FC<{ data: ReportData }> = ({ data }) => (
         </View>
       </View>
 
-      {/* Typography Section */}
-      <View style={styles.section}>
-        <Text style={styles.title}>Typography Assessment</Text>
-        <Text style={[styles.subtitle, { color: '#3b82f6' }]}>Score: {data.typography.score}/100</Text>
-        
-        <Text style={styles.subtitle}>Issues Identified:</Text>
-        {data.typography.issues.map((issue, index) => (
-          <View key={index} style={styles.issueItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.text}>{issue}</Text>
+      {/* Typography Analysis */}
+      <View style={styles.strengthsSection}>
+        <Text style={styles.title}>Typography Analysis</Text>
+        {data.typography.issues.length > 0 && (
+          <View>
+            <Text style={[styles.subtitle, { color: '#991b1b' }]}>Issues:</Text>
+            {data.typography.issues.slice(0, 3).map((issue: string, index: number) => (
+              <View key={index} style={styles.issueItem}>
+                <View style={styles.bullet} />
+                <Text style={[styles.text, { flex: 1 }]}>{issue}</Text>
+              </View>
+            ))}
           </View>
-        ))}
-        
-        <Text style={styles.subtitle}>Recommendations:</Text>
-        {data.typography.recommendations.map((rec, index) => (
-          <View key={index} style={styles.issueItem}>
-            <View style={styles.recommendationBullet} />
-            <Text style={styles.text}>{rec}</Text>
+        )}
+        {data.typography.recommendations.length > 0 && (
+          <View style={{ marginTop: 8 }}>
+            <Text style={[styles.subtitle, { color: '#065f46' }]}>Recommendations:</Text>
+            {data.typography.recommendations.slice(0, 2).map((rec: string, index: number) => (
+              <View key={index} style={styles.issueItem}>
+                <View style={styles.recommendationBullet} />
+                <Text style={[styles.text, { flex: 1 }]}>{rec}</Text>
+              </View>
+            ))}
           </View>
-        ))}
+        )}
       </View>
 
-      {/* Color Section */}
-      <View style={styles.section}>
-        <Text style={styles.title}>Color & Accessibility Assessment</Text>
-        <Text style={[styles.subtitle, { color: '#8b5cf6' }]}>Score: {data.color.score}/100</Text>
-        
-        <Text style={styles.subtitle}>Issues Identified:</Text>
-        {data.color.issues.map((issue, index) => (
-          <View key={index} style={styles.issueItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.text}>{issue}</Text>
-          </View>
-        ))}
-        
-        <Text style={styles.subtitle}>Recommendations:</Text>
-        {data.color.recommendations.map((rec, index) => (
-          <View key={index} style={styles.issueItem}>
-            <View style={styles.recommendationBullet} />
-            <Text style={styles.text}>{rec}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Layout Section */}
-      <View style={styles.section}>
-        <Text style={styles.title}>Layout & Structure Assessment</Text>
-        <Text style={[styles.subtitle, { color: '#f59e0b' }]}>Score: {data.layout.score}/100</Text>
-        
-        <Text style={styles.subtitle}>Issues Identified:</Text>
-        {data.layout.issues.map((issue, index) => (
-          <View key={index} style={styles.issueItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.text}>{issue}</Text>
-          </View>
-        ))}
-        
-        <Text style={styles.subtitle}>Recommendations:</Text>
-        {data.layout.recommendations.map((rec, index) => (
-          <View key={index} style={styles.issueItem}>
-            <View style={styles.recommendationBullet} />
-            <Text style={styles.text}>{rec}</Text>
-          </View>
-        ))}
+      {/* Color & Layout Analysis */}
+      <View style={styles.aiAnalysisSection}>
+        <Text style={styles.title}>Color & Layout Analysis</Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoItem}>Color Score: {data.color.score}/100</Text>
+          <Text style={styles.infoItem}>Layout Score: {data.layout.score}/100</Text>
+        </View>
+        {data.color.issues.length > 0 && (
+          <Text style={[styles.text, { marginTop: 8 }]}>
+            Key Issues: {data.color.issues.slice(0, 2).join(', ')}
+          </Text>
+        )}
       </View>
 
       <Text style={styles.footer}>
-        Professional Website Design Analysis Report • Generated by AI-Powered Design Scoring Tool
+        Professional Website Design Analysis • Generated by Web Engine • {new Date().toLocaleDateString()}
       </Text>
     </Page>
   </Document>
 );
 
-// PDF Download Component
+// PDF Download Component that handles both data types
 interface PDFReportProps {
-  data: ReportData | null;
+  data?: ReportData | AnalysisResponse | null;
   disabled?: boolean;
 }
 
@@ -264,12 +396,27 @@ export const PDFReport: React.FC<PDFReportProps> = ({ data, disabled = false }) 
     );
   }
 
+  // Check if this is new AnalysisResponse format or legacy ReportData
+  const isNewFormat = 'analysis_id' in data;
+  
+  const getFileName = () => {
+    const urlPart = data.url.replace(/https?:\/\//, '').replace(/[^a-zA-Z0-9]/g, '-');
+    const timestamp = isNewFormat ? 
+      new Date((data as AnalysisResponse).completed_at).getTime() : 
+      (data as ReportData).timestamp.getTime();
+    return `website-report.pdf`;
+  };
+
   return (
     <PDFDownloadLink
-      document={<ReportDocument data={data} />}
-      fileName={`design-report-${data.url.replace(/https?:\/\//, '').replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}.pdf`}
+      document={
+        isNewFormat ? 
+          <NewReportDocument data={data as AnalysisResponse} /> : 
+          <LegacyReportDocument data={data as ReportData} />
+      }
+      fileName={getFileName()}
     >
-      {({ blob, url, loading, error }) => (
+      {({ loading }) => (
         <Button 
           disabled={loading || disabled} 
           size="lg"
@@ -294,5 +441,5 @@ export const PDFReport: React.FC<PDFReportProps> = ({ data, disabled = false }) 
   );
 };
 
-// Export the ReportData type for use in other components
-export type { ReportData };
+// Export both data types for backward compatibility
+export type { ReportData, AnalysisResponse };

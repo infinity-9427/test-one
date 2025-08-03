@@ -2,11 +2,20 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=18.17.0",
+    "pnpm": ">=8.0.0",
+    "npm": "please-use-pnpm",
+    "yarn": "please-use-pnpm"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "install-deps": "pnpm install",
+    "clean": "rm -rf .next && rm -rf node_modules && pnpm install"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
