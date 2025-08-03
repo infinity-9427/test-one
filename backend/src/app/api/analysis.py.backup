@@ -19,13 +19,15 @@ class AnalysisRequest(BaseModel):
     url: HttpUrl
     include_mobile: bool = True
     include_llm_analysis: bool = True
+    store_cloudinary: bool = True
     
     model_config = {
         "json_schema_extra": {
             "example": {
                 "url": "https://example.com",
                 "include_mobile": True,
-                "include_llm_analysis": True
+                "include_llm_analysis": True,
+                "store_cloudinary": True
             }
         }
     }
@@ -87,7 +89,8 @@ async def start_analysis(
             analysis_id,
             str(request.url),
             request.include_mobile,
-            request.include_llm_analysis
+            request.include_llm_analysis,
+            request.store_cloudinary
         )
         
         return AnalysisStatus(
@@ -218,7 +221,8 @@ async def run_analysis_background(
     analysis_id: str,
     url: str,
     include_mobile: bool,
-    include_llm_analysis: bool
+    include_llm_analysis: bool,
+    store_cloudinary: bool = True
 ):
     """Background task to run the complete analysis."""
     try:
@@ -233,9 +237,9 @@ async def run_analysis_background(
         print(f"Starting screenshot capture for {url}")
         try:
             if include_mobile:
-                screenshot_data = await screenshot_service.capture_both_viewports(url)
+                screenshot_data = await screenshot_service.capture_both_viewports(url, store_cloudinary)
             else:
-                desktop_screenshot = await screenshot_service.capture_screenshot(url, "desktop")
+                desktop_screenshot = await screenshot_service.capture_screenshot(url, "desktop", store_cloudinary)
                 screenshot_data = {
                     "url": url,
                     "captured_at": datetime.now().isoformat(),
@@ -307,6 +311,14 @@ async def run_analysis_background(
         }
         
         print(f"Analysis completed for {url} with score: {ai_result.get('overall_score', 0)}")
+        
+        # Step 5: Log to Google Sheets (if enabled)
+        try:
+            from .google_sheets import log_analysis_to_sheets_async
+            await log_analysis_to_sheets_async(analysis_results[analysis_id])
+        except Exception as sheets_error:
+            print(f"Failed to log analysis {analysis_id} to Google Sheets: {sheets_error}")
+            # Don't fail the entire analysis if Google Sheets logging fails
         
     except Exception as e:
         print(f"Analysis failed for {url}: {e}")

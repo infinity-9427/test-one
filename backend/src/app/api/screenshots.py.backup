@@ -11,7 +11,7 @@ from ..services.screenshot_storage import screenshot_storage_service
 
 class ScreenshotRequest(BaseModel):
     url: HttpUrl = Field(..., description="Website URL to capture")
-    upload_to_cloud: bool = Field(default=True, description="Upload to cloud storage")
+    store_cloudinary: bool = Field(default=True, description="Upload screenshots to Cloudinary")
     capture_mode: str = Field(default="viewport", description="Capture mode: 'viewport' for consistent dimensions, 'full_page' for variable height")
 
 
@@ -36,7 +36,7 @@ async def capture_screenshots(request: ScreenshotRequest):
         # Capture both viewports
         result = await screenshot_storage_service.capture_and_store_both_viewports(
             url=str(request.url),
-            upload_to_cloud=request.upload_to_cloud
+            upload_to_cloud=request.store_cloudinary
         )
         
         return ScreenshotResponse(

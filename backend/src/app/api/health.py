@@ -63,33 +63,66 @@ async def check_ollama_health() -> ServiceHealth:
 async def check_cloudinary_health() -> ServiceHealth:
     """Check Cloudinary service connectivity."""
     try:
+        # Check if credentials are configured
         if not all([settings.cloudinary_cloud_name, settings.cloudinary_api_key, settings.cloudinary_api_secret]):
             return ServiceHealth(
                 status="not_configured",
                 response_time_ms=0,
-                error="Cloudinary credentials not configured"
+                error=f"Cloudinary credentials not configured. cloud_name='{settings.cloudinary_cloud_name}', api_key='{settings.cloudinary_api_key[:10]}...', api_secret='{'*' * len(settings.cloudinary_api_secret) if settings.cloudinary_api_secret else 'None'}'"
             )
+        
+        # Actually test Cloudinary connectivity with a real API call
+        import cloudinary
+        import cloudinary.api
+        from cloudinary.exceptions import Error as CloudinaryError
+        
+        cloudinary.config(
+            cloud_name=settings.cloudinary_cloud_name,
+            api_key=settings.cloudinary_api_key,
+            api_secret=settings.cloudinary_api_secret,
+        )
         
         start_time = datetime.now()
-        
-        # Simple ping to Cloudinary API
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"https://api.cloudinary.com/v1_1/{settings.cloudinary_cloud_name}/image/list")
+        try:
+            result = cloudinary.api.ping()
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
             
-        response_time = (datetime.now() - start_time).total_seconds() * 1000
-        
-        if response.status_code in [200, 401]:  # 401 means service is up but auth failed
             return ServiceHealth(
                 status="healthy",
-                response_time_ms=response_time
+                response_time_ms=response_time,
+                error=None
             )
-        else:
+        except CloudinaryError as e:
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
             return ServiceHealth(
                 status="unhealthy",
                 response_time_ms=response_time,
-                error=f"HTTP {response.status_code}"
+                error=f"Cloudinary API error: {str(e)} (code: {getattr(e, 'code', 'unknown')})"
             )
             
+    except Exception as e:
+        return ServiceHealth(
+            status="unhealthy",
+            response_time_ms=0,
+            error=f"Unexpected error: {str(e)} (type: {type(e).__name__})"
+        )
+
+
+async def check_google_sheets_health() -> ServiceHealth:
+    """Check Google Sheets service connectivity."""
+    try:
+        from ..services.google_sheets import google_sheets_service
+        
+        start_time = datetime.now()
+        health_result = await google_sheets_service.health_check()
+        response_time = (datetime.now() - start_time).total_seconds() * 1000
+        
+        return ServiceHealth(
+            status=health_result["status"],
+            response_time_ms=response_time,
+            error=health_result.get("error")
+        )
+        
     except Exception as e:
         return ServiceHealth(
             status="unhealthy",
@@ -110,10 +143,11 @@ async def health_check():
         results = await asyncio.gather(
             check_ollama_health(),
             check_cloudinary_health(),
+            check_google_sheets_health(),
             return_exceptions=True
         )
         
-        ollama_health, cloudinary_health = results
+        ollama_health, cloudinary_health, google_sheets_health = results
         
         # Handle any exceptions from the gather
         if isinstance(ollama_health, Exception):
@@ -128,6 +162,13 @@ async def health_check():
                 status="error", 
                 response_time_ms=0,
                 error=str(cloudinary_health)
+            )
+            
+        if isinstance(google_sheets_health, Exception):
+            google_sheets_health = ServiceHealth(
+                status="error",
+                response_time_ms=0,
+                error=str(google_sheets_health)
             )
         
         services = {}
@@ -150,6 +191,16 @@ async def health_check():
                 status="error",
                 response_time_ms=0,
                 error=str(cloudinary_health)
+            ).model_dump()
+            
+        # Process google sheets health
+        if isinstance(google_sheets_health, ServiceHealth):
+            services["google_sheets"] = google_sheets_health.model_dump()
+        else:
+            services["google_sheets"] = ServiceHealth(
+                status="error",
+                response_time_ms=0,
+                error=str(google_sheets_health)
             ).model_dump()
         
         # Determine overall status

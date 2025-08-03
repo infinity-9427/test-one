@@ -17,8 +17,7 @@ import uvicorn
 
 from src.app.core.settings import settings
 from src.app.api.health import router as health_router
-from src.app.api.screenshots import router as screenshots_router
-from src.app.api.analysis import router as analysis_router
+from src.app.api.master_analysis import router as master_analysis_router
 
 
 @asynccontextmanager
@@ -28,6 +27,12 @@ async def lifespan(app: FastAPI):
         print(f"Starting {settings.app_name} v{settings.app_version}")
         print(f"Environment: {settings.environment}")
         print(f"Debug mode: {settings.debug}")
+        
+        # Import startup initialization
+        from startup import initialize_services
+        
+        # Initialize all services
+        await initialize_services()
         
         # Create cache directory if it doesn't exist
         if settings.cache_enabled and not os.path.exists(settings.cache_dir):
@@ -66,8 +71,7 @@ def create_app() -> FastAPI:
     
     # Include routers
     app.include_router(health_router, prefix="/api/v1")
-    app.include_router(screenshots_router, prefix="/api/v1/screenshots")
-    app.include_router(analysis_router)
+    app.include_router(master_analysis_router)
     
     return app
 

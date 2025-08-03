@@ -34,11 +34,14 @@ RUN playwright install chromium
 # Copy application code
 COPY . .
 
-# Create cache directory
-RUN mkdir -p /app/cache
+# Create necessary directories
+RUN mkdir -p /app/cache /app/screenshots
+
+# Make scripts executable
+RUN chmod +x start_backend.sh startup.py
 
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application with startup checks
+CMD ["./start_backend.sh"]

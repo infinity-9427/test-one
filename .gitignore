@@ -206,5 +206,33 @@ temp/
 *.sln
 *.sw?
 
+# Google Cloud & API credentials (SENSITIVE - NEVER COMMIT)
+/backend/credentials/
+/frontend/credentials/
+credentials/
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.json
+!components.json
+!tailwind.config.json
+
+# Service account keys and API credentials
+*service-account*.json
+*credentials*.json
+*-key.json
+google-*.json
+
+# API Keys and secrets
+api-keys.txt
+secrets.txt
+private-key*
+
+# Cloud storage credentials
+cloudinary-*.json
+aws-credentials*
+gcp-credentials*
+
 # docs
 doc.md

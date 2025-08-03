@@ -29,7 +29,7 @@ class DesignMetrics:
             "font_fallbacks": [],
             "heading_hierarchy": [],
             "paragraph_lengths": [],
-            "score": 70  # Default moderate score
+            "score": 100  # Start perfect, subtract for issues found
         }
         
         self.color = {
@@ -38,7 +38,7 @@ class DesignMetrics:
             "saturation_violations": [],
             "contrast_violations": [],
             "color_count": 0,
-            "score": 70  # Default moderate score
+            "score": 100  # Start perfect, subtract for issues found
         }
         
         self.layout = {
@@ -46,7 +46,7 @@ class DesignMetrics:
             "grid_violations": [],
             "section_padding": [],
             "visual_balance": {"x": 0, "y": 0, "balanced": False},
-            "score": 70  # Default moderate score
+            "score": 100  # Start perfect, subtract for issues found
         }
         
         self.responsiveness = {
@@ -54,7 +54,7 @@ class DesignMetrics:
             "breakpoint_violations": [],
             "touch_target_violations": [],
             "image_scaling_issues": [],
-            "score": 70  # Default moderate score
+            "score": 100  # Start perfect, subtract for issues found
         }
         
         self.accessibility = {
@@ -62,14 +62,14 @@ class DesignMetrics:
             "aria_violations": [],
             "semantic_html_issues": [],
             "focus_order_issues": [],
-            "score": 70  # Default moderate score
+            "score": 100  # Start perfect, subtract for issues found
         }
         
         self.performance = {
             "page_weight": 0,
             "image_optimization": [],
             "meta_tags": [],
-            "score": 70  # Default moderate score
+            "score": 100  # Start perfect, subtract for issues found
         }
 
 
@@ -236,6 +236,9 @@ class RuleBasedAnalyzer:
                 metrics["font_fallbacks"].append(fonts)
                 if len(fonts) < 2:
                     metrics["score"] -= 15
+            
+            # Ensure score stays within valid range
+            metrics["score"] = max(0, min(100, metrics["score"]))
                     
         except Exception as e:
             print(f"Typography analysis error: {e}")
@@ -281,6 +284,9 @@ class RuleBasedAnalyzer:
                 if saturation > 0.85:
                     metrics["saturation_violations"].append(color)
                     metrics["score"] -= 15
+            
+            # Ensure score stays within valid range
+            metrics["score"] = max(0, min(100, metrics["score"]))
                     
         except Exception as e:
             print(f"Color analysis error: {e}")
@@ -320,6 +326,9 @@ class RuleBasedAnalyzer:
                 metrics["score"] -= 30
             elif whitespace_ratio > 0.5:
                 metrics["score"] -= 15
+            
+            # Ensure score stays within valid range
+            metrics["score"] = max(0, min(100, metrics["score"]))
                 
         except Exception as e:
             print(f"Layout analysis error: {e}")
@@ -345,7 +354,7 @@ class RuleBasedAnalyzer:
             return default
     
     def _analyze_responsiveness(self) -> Dict[str, Any]:
-        """Analyze responsiveness indicators."""
+        """Analyze responsiveness indicators with modern web standards."""
         metrics = {
             "viewport_meta": False,
             "breakpoint_violations": [],
@@ -365,18 +374,52 @@ class RuleBasedAnalyzer:
             if not viewport_meta:
                 metrics["score"] -= 25
             
-            # Check for responsive images
+            # Modern approach to image analysis - focus on critical issues only
             img_tags = self.soup.find_all('img')
+            critical_issues = 0
+            
             for img in img_tags:
-                srcset = self._get_attribute_safely(img, 'srcset')
-                style = self._get_attribute_safely(img, 'style')
+                src = self._get_attribute_safely(img, 'src')
                 
-                if not (srcset or 'width:100%' in style):
+                # Skip non-critical images
+                if (not src or 
+                    src.startswith('data:') or 
+                    any(keyword in src.lower() for keyword in ['icon', 'logo', 'sprite', '.svg']) or
+                    src.startswith('//')):
+                    continue
+                
+                # Check for responsive attributes
+                srcset = self._get_attribute_safely(img, 'srcset')
+                style = self._get_attribute_safely(img, 'style') or ''
+                classes = self._get_attribute_safely(img, 'class') or ''
+                
+                # Modern responsive indicators
+                has_responsive = any([
+                    srcset,
+                    'width:100%' in style,
+                    'max-width:100%' in style,
+                    'width: 100%' in style,
+                    'responsive' in classes.lower(),
+                    'img-responsive' in classes.lower(),
+                    'img-fluid' in classes.lower()
+                ])
+                
+                if not has_responsive:
                     metrics["image_scaling_issues"].append({
-                        "src": self._get_attribute_safely(img, 'src'),
+                        "src": src[:100] + '...' if len(src) > 100 else src,
                         "alt": self._get_attribute_safely(img, 'alt')
                     })
-                    metrics["score"] -= 20
+                    critical_issues += 1
+            
+            # Much more reasonable penalty system
+            if critical_issues > 0:
+                # Only penalize if there are many critical issues
+                if critical_issues > 5:
+                    penalty = min(15, critical_issues)  # Max 15 points penalty
+                    metrics["score"] -= penalty
+            
+            # Ensure score doesn't go below 0
+            metrics["score"] = max(0, metrics["score"])
                     
         except Exception as e:
             print(f"Responsiveness analysis error: {e}")
@@ -384,7 +427,7 @@ class RuleBasedAnalyzer:
         return metrics
     
     def _analyze_accessibility(self) -> Dict[str, Any]:
-        """Analyze accessibility indicators."""
+        """Analyze accessibility indicators with modern web standards."""
         metrics = {
             "missing_alt_text": [],
             "aria_violations": [],
@@ -397,31 +440,82 @@ class RuleBasedAnalyzer:
             if not self.soup:
                 return metrics
                 
-            # Check for missing alt text
+            # Check for missing alt text on content images only
             img_tags = self.soup.find_all('img')
+            missing_alt = 0
+            
             for img in img_tags:
+                src = self._get_attribute_safely(img, 'src')
                 alt_text = self._get_attribute_safely(img, 'alt')
+                
+                # Skip decorative images and icons (be more generous)
+                if (not src or 
+                    src.startswith('data:') or 
+                    any(keyword in src.lower() for keyword in ['icon', 'logo', 'sprite', '.svg', 'button', 'arrow', 'chevron']) or
+                    src.startswith('//')):
+                    continue
+                
+                # Check if it's likely a decorative image by size or CSS
+                parent = img.parent if img.parent else None
+                if parent:
+                    parent_class = parent.get('class') or []
+                    if any(keyword in str(parent_class).lower() for keyword in ['icon', 'decoration', 'background']):
+                        continue
+                
                 if not alt_text:
-                    src = self._get_attribute_safely(img, 'src', 'unknown')
-                    metrics["missing_alt_text"].append(src)
-                    metrics["score"] -= 10
+                    metrics["missing_alt_text"].append(src[:50] + '...' if len(src) > 50 else src)
+                    missing_alt += 1
             
-            # Check for semantic HTML
-            required_semantic = ['header', 'main', 'footer']
-            for tag in required_semantic:
-                if not self.soup.find(tag):
-                    metrics["semantic_html_issues"].append(f"Missing {tag} tag")
-                    metrics["score"] -= 20
+            # Much more reasonable penalty for missing alt text
+            if missing_alt > 3:  # Only penalize if many content images are missing alt
+                penalty = min(missing_alt * 2, 15)  # 2 points per missing alt, max 15
+                metrics["score"] -= penalty
             
-            # Check for ARIA labels on buttons
-            buttons = self.soup.find_all(['button', 'a'])
+            # Check for semantic HTML (be more lenient)
+            semantic_penalty = 0
+            
+            # Main is most important
+            if not self.soup.find('main'):
+                metrics["semantic_html_issues"].append("Missing main tag")
+                semantic_penalty += 10
+            
+            # Header and footer are nice to have but not critical
+            if not self.soup.find('header'):
+                metrics["semantic_html_issues"].append("Missing header tag")
+                semantic_penalty += 5
+                
+            if not self.soup.find('footer'):
+                metrics["semantic_html_issues"].append("Missing footer tag")
+                semantic_penalty += 5
+            
+            # Navigation is good for accessibility
+            if not self.soup.find('nav'):
+                metrics["semantic_html_issues"].append("Missing nav tag")
+                semantic_penalty += 3
+            
+            # Apply penalty instead of negative addition
+            metrics["score"] -= semantic_penalty
+            
+            # Check for ARIA labels on buttons (be very selective)
+            aria_violations = 0
+            buttons = self.soup.find_all('button')  # Only actual buttons
+            
             for button in buttons:
                 aria_label = self._get_attribute_safely(button, 'aria-label')
-                button_text = self._get_text_safely(button)
+                button_text = self._get_text_safely(button).strip()
                 
-                if not (aria_label or button_text):
+                # Only flag if it's a critical button with no text or label
+                if not (aria_label or button_text) and len(button_text) == 0:
                     metrics["aria_violations"].append("Button without label")
-                    metrics["score"] -= 15
+                    aria_violations += 1
+            
+            # Very small penalty for ARIA violations
+            if aria_violations > 2:
+                penalty = min(aria_violations * 3, 10)  # 3 points per violation, max 10
+                metrics["score"] -= penalty
+            
+            # Ensure score doesn't go below 0
+            metrics["score"] = max(0, metrics["score"])
                     
         except Exception as e:
             print(f"Accessibility analysis error: {e}")

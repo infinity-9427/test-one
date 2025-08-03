@@ -17,6 +17,7 @@ from PIL import Image
 import aiofiles
 
 from ..core.settings import settings
+from .cloudinary import cloudinary_service
 
 
 class ScreenshotCache:
@@ -132,9 +133,11 @@ class ScreenshotService:
         self, 
         url: str, 
         viewport: Dict[str, int],
+        viewport_type: str = "desktop",
         timeout: Optional[int] = None,
-        capture_mode: str = "viewport"
-    ) -> Tuple[str, Dict[str, Any]]:
+        capture_mode: str = "viewport",
+        store_cloudinary: bool = True
+    ) -> Tuple[str, Dict[str, Any], Dict[str, Any]]:
         """Capture screenshot using Playwright."""
         timeout = timeout or settings.playwright_timeout
         
@@ -207,7 +210,42 @@ class ScreenshotService:
                         "timestamp": datetime.now().isoformat()
                     }
                     
-                    return str(local_path), page_metrics
+                    # Upload to Cloudinary automatically (if enabled and requested)
+                    cloudinary_data = {}
+                    try:
+                        if store_cloudinary and cloudinary_service.is_configured():
+                            screenshot_data = {
+                                "url": url,
+                                "viewport_type": viewport_type,
+                                "viewport": viewport,
+                                "page_metrics": page_metrics,
+                                "captured_at": datetime.now().isoformat()
+                            }
+                            
+                            cloudinary_result = await cloudinary_service.upload_screenshot(
+                                str(local_path), screenshot_data
+                            )
+                            
+                            if cloudinary_result:
+                                cloudinary_data = {
+                                    "cloudinary_url": cloudinary_result.get("cloudinary_url"),
+                                    "cloudinary_public_id": cloudinary_result.get("cloudinary_public_id"),
+                                    "cloudinary_thumbnail": cloudinary_result.get("cloudinary_thumbnail"),
+                                    "file_size": cloudinary_result.get("file_size"),
+                                    "format": cloudinary_result.get("format")
+                                }
+                                print(f"Screenshot uploaded to Cloudinary: {cloudinary_data['cloudinary_url']}")
+                            else:
+                                print("Cloudinary upload returned no result")
+                        elif not store_cloudinary:
+                            print("Cloudinary upload skipped (store_cloudinary=False)")
+                        else:
+                            print("Cloudinary not configured - skipping upload")
+                    except Exception as e:
+                        print(f"Cloudinary upload failed (continuing anyway): {e}")
+                        # Don't fail the entire screenshot process if Cloudinary fails
+                    
+                    return str(local_path), page_metrics, cloudinary_data
                     
                 finally:
                     await browser.close()
@@ -218,7 +256,8 @@ class ScreenshotService:
     async def capture_screenshot(
         self, 
         url: str, 
-        viewport_type: str = "desktop"
+        viewport_type: str = "desktop",
+        store_cloudinary: bool = True
     ) -> Dict[str, Any]:
         """
         Capture screenshot of a website.
@@ -226,6 +265,7 @@ class ScreenshotService:
         Args:
             url: Website URL to capture
             viewport_type: "desktop" or "mobile"
+            store_cloudinary: Whether to upload to Cloudinary (default: True)
             
         Returns:
             Dictionary with screenshot data and metadata
@@ -248,8 +288,8 @@ class ScreenshotService:
                     }
             
             # Capture new screenshot with consistent dimensions
-            local_path, page_metrics = await self._capture_screenshot_with_playwright(
-                url, viewport, capture_mode=self.capture_mode
+            local_path, page_metrics, cloudinary_data = await self._capture_screenshot_with_playwright(
+                url, viewport, viewport_type, capture_mode=self.capture_mode, store_cloudinary=store_cloudinary
             )
             
             result = {
@@ -259,7 +299,8 @@ class ScreenshotService:
                 "local_path": local_path,
                 "page_metrics": page_metrics,
                 "from_cache": False,
-                "captured_at": datetime.now().isoformat()
+                "captured_at": datetime.now().isoformat(),
+                **cloudinary_data  # Include Cloudinary data (cloudinary_url, public_id, etc.)
             }
             
             # Cache the result
@@ -275,20 +316,21 @@ class ScreenshotService:
             print(f"Screenshot service error for {url}: {e}")
             raise Exception("We're experiencing issues capturing website screenshots. Please try again later.")
     
-    async def capture_both_viewports(self, url: str) -> Dict[str, Any]:
+    async def capture_both_viewports(self, url: str, store_cloudinary: bool = True) -> Dict[str, Any]:
         """
         Capture screenshots for both desktop and mobile viewports.
         
         Args:
             url: Website URL to capture
+            store_cloudinary: Whether to upload to Cloudinary (default: True)
             
         Returns:
             Dictionary with both desktop and mobile screenshots
         """
         try:
             # Capture both viewports concurrently - no fallbacks
-            desktop_result = await self.capture_screenshot(url, "desktop")
-            mobile_result = await self.capture_screenshot(url, "mobile")
+            desktop_result = await self.capture_screenshot(url, "desktop", store_cloudinary)
+            mobile_result = await self.capture_screenshot(url, "mobile", store_cloudinary)
             
             result = {
                 "url": url,

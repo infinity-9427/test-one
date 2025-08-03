@@ -1,32 +1,53 @@
 # Website Design Scorer Backend
 
-AI-powered website design analysis and scoring system using Ollama + Llama3.
+AI-powered website design analysis and scoring system with vision-based AI analysis.
 
-## Features
+## 🚀 Features
 
-- **Rule-based Analysis**: Typography, color harmony, layout, responsiveness, accessibility checks
-- **AI-powered Insights**: LLM analysis using Llama3 via Ollama
-- **Screenshot Capture**: Multi-viewport screenshots with Playwright
-- **Cloud Storage**: Cloudinary integration for image management
-- **REST API**: FastAPI-based endpoints with async processing
+- **AI Vision Analysis**: Advanced visual design analysis using Ollama Qwen2.5VL model
+- **Rule-based Scoring**: 5-category analysis (Typography, Color, Layout, Responsiveness, Accessibility)
+- **Multi-Device Screenshots**: Desktop (1200x800) and mobile (375x667) capture
+- **Cloud Integration**: Cloudinary storage with automatic optimization
+- **Data Logging**: Google Sheets integration for analysis history
+- **Unified API**: Single endpoint for complete analysis workflow
 
-## Quick Start with Docker
+## 🎯 Primary API Endpoint
+
+**All you need is one endpoint:**
 
 ```bash
-# Start all services (Ollama + Llama3 + Backend)
-./start.sh
-
-# Test the API
-python test_analysis.py
+POST /api/v1/master/analyze-complete
 ```
 
-## API Endpoints
+Complete website analysis in a single API call with screenshots, AI insights, scoring, and cloud storage.
 
-- `GET /api/v1/health` - Basic health check
-- `GET /api/v1/analysis/health` - Analysis services health
-- `POST /api/v1/analysis/analyze` - Start website analysis
-- `GET /api/v1/analysis/status/{id}` - Check analysis status
-- `GET /api/v1/analysis/result/{id}` - Get analysis results
+## 🚀 Quick Start
+
+```bash
+# Start all services
+docker compose up -d
+
+# Test the API
+curl -X POST "http://localhost:8000/api/v1/master/analyze-complete" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://github.com"}' | jq .
+```
+
+## 📚 Documentation
+
+- **📖 [Complete API Documentation](./API_DOCUMENTATION.md)** - Full endpoint details and examples
+- **🎯 [Service Overview](./SERVICE_OVERVIEW.md)** - Simplified API structure and usage guide
+- **🔧 Interactive Docs:** http://localhost:8000/docs (when debug=true)
+
+## 🔧 API Endpoints
+
+### **Primary Endpoint**
+- `POST /api/v1/master/analyze-complete` - **⭐ Complete website analysis**
+
+### **Health Monitoring**  
+- `GET /api/v1/health/simple` - Simple health check
+- `GET /api/v1/health` - Detailed system health
+- `GET /api/v1/master/health` - Service status
 
 ## Environment Variables
 
