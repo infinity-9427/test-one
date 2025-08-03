@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional
 
 import cloudinary
 import cloudinary.uploader
+import cloudinary.api
 from cloudinary.exceptions import Error as CloudinaryError
 
 from ..core.settings import settings
@@ -101,10 +102,10 @@ class CloudinaryService:
                 public_id=public_id,
                 tags=tags,
                 resource_type="image",
-                format="webp",  # Convert to WebP for better compression
-                folder=settings.upload_folder,  # Use UPLOAD_FOLDER from .env
-                quality="auto",  # Automatic quality optimization
-                fetch_format="auto",  # Automatic format selection
+                format="webp",  
+                folder=settings.upload_folder,  
+                quality="auto",  
+                fetch_format="auto",  
                 transformation=[
                     {'width': 1200, 'crop': "limit"},  # Limit max width to 1200px
                     {'height': 1200, 'crop': "limit"},  # Limit max height to 1200px  
@@ -156,6 +157,19 @@ class CloudinaryService:
             
         except Exception as e:
             print(f"Screenshot deletion error: {e}")
+            return False
+    
+    async def test_connection(self) -> bool:
+        """Test Cloudinary connection."""
+        try:
+            if not self.configured:
+                return False
+            
+            # Try to get account information
+            result = cloudinary.api.ping()
+            return result.get("status") == "ok"
+            
+        except Exception:
             return False
     
     def get_thumbnail_url(self, public_id: str, width: int = 300, height: int = 200) -> str:

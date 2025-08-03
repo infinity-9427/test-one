@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     
     # Ollama settings
     ollama_base_url: str = Field(default="http://localhost:11434", description="Ollama base URL")
-    ollama_model: str = Field(default="llama3", description="Ollama model to use")
+    ollama_model: str = Field(default="phi4", description="Ollama model to use")
     ollama_timeout: int = Field(default=60, description="Ollama request timeout in seconds")
     
     # Cloudinary settings (will be set when API keys are provided)

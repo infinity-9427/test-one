@@ -9,7 +9,11 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     curl \
     unzip \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast Python package management
+RUN pip install uv
 
 # Install Chrome for Playwright
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
@@ -18,11 +22,11 @@ RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Copy pyproject.toml and README.md for dependency resolution
+COPY pyproject.toml README.md ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies using uv (much faster than pip)
+RUN uv pip install --system -e .
 
 # Install Playwright browsers
 RUN playwright install chromium
@@ -30,8 +34,11 @@ RUN playwright install chromium
 # Copy application code
 COPY . .
 
+# Create cache directory
+RUN mkdir -p /app/cache
+
 # Expose port
 EXPOSE 8000
 
 # Run the application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

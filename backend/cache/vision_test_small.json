@@ -1,0 +1,9 @@
+{
+  "model": "llama3.2-vision",
+  "prompt": "What do you see in this image? Can you identify any text, colors, or specific visual elements?",
+  "images": ["PLACEHOLDER"],
+  "stream": false,
+  "options": {
+    "temperature": 0.1
+  }
+}

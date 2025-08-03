@@ -1,0 +1,220 @@
+from typing import Any
+
+
+class VisionAnalysisPrompts:
+    """Collection of prompts for AI vision analysis."""
+    
+    @staticmethod
+    def create_vision_analysis_prompt(url: str, metrics: Any) -> str:
+        """
+        Create optimized prompt for Llama 3.2-Vision analysis with screenshot.
+        
+        Args:
+            url: Website URL being analyzed
+            metrics: DesignMetrics object containing rule-based analysis results
+            
+        Returns:
+            Formatted prompt string for vision analysis
+        """
+        
+        # Safe metric access with fallbacks
+        typo_score = getattr(metrics, 'typography', {}).get('score', 0) if hasattr(metrics, 'typography') else 0
+        color_score = getattr(metrics, 'color', {}).get('score', 0) if hasattr(metrics, 'color') else 0
+        layout_score = getattr(metrics, 'layout', {}).get('score', 0) if hasattr(metrics, 'layout') else 0
+        resp_score = getattr(metrics, 'responsiveness', {}).get('score', 0) if hasattr(metrics, 'responsiveness') else 0
+        access_score = getattr(metrics, 'accessibility', {}).get('score', 0) if hasattr(metrics, 'accessibility') else 0
+        
+        prompt = f"""You are an expert UI/UX designer with advanced vision capabilities. You are analyzing a SCREENSHOT of this website: {url}
+
+CRITICAL: You MUST look at and analyze the provided screenshot image. Your analysis should be based entirely on what you can SEE in the screenshot.
+
+VISUAL ANALYSIS REQUIREMENTS (based on what you SEE in the screenshot):
+
+**1. SCREENSHOT VERIFICATION**:
+- Confirm you can see the website screenshot
+- Describe what you see in the first few lines (header, main content, colors)
+
+**2. VISUAL LAYOUT ANALYSIS (1-10 scale)**:
+- Overall visual hierarchy visible in the screenshot
+- Grid alignment, spacing consistency, and balance you observe
+- Content organization and readability flow you can see
+
+**3. TYPOGRAPHY & READABILITY (from what's visible)**:
+- Font choices, sizing, and hierarchy you can observe in the screenshot
+- Text contrast and legibility of all text elements you see
+- Reading flow and content structure visible in the image
+
+**4. COLOR & VISUAL DESIGN (based on screenshot)**:
+- Color scheme harmony and accessibility visible in the image
+- Contrast ratios and visual emphasis you can see
+- Brand consistency and aesthetic appeal from the screenshot
+
+**5. UI/UX ELEMENTS (what you observe in the screenshot)**:
+- Navigation clarity and button design visible
+- Interactive element visibility and accessibility you can see
+- Mobile-responsive design indicators visible
+- Call-to-action effectiveness from what's shown
+
+**6. TECHNICAL OBSERVATIONS (from the screenshot)**:
+- Layout consistency and professional polish visible
+- Visual bugs, alignment issues, or inconsistencies you can see
+- Accessibility compliance indicators visible in the image
+
+**AUTOMATED METRICS FOR REFERENCE**:
+Typography: {typo_score}/100 | Color: {color_score}/100 | Layout: {layout_score}/100
+Responsiveness: {resp_score}/100 | Accessibility: {access_score}/100
+
+**DELIVERABLE**: 
+1. START by confirming you can see the screenshot and briefly describe what's visible
+2. Provide specific, actionable feedback based entirely on visual observation
+3. Give a final visual quality score (1-10) based on what you see
+4. Focus ONLY on what you can actually SEE and READ in the screenshot
+
+**IMPORTANT**: Your analysis must demonstrate you're actually looking at the screenshot. Mention specific visual elements, colors, text, and layout details you observe.
+
+Response limit: 600 words."""
+
+        return prompt
+    
+    @staticmethod
+    def create_detailed_vision_prompt(url: str, metrics: Any, rules_content: str = "") -> str:
+        """
+        Create a more detailed prompt with custom design rules context.
+        
+        Args:
+            url: Website URL being analyzed
+            metrics: DesignMetrics object containing rule-based analysis results
+            rules_content: Custom design rules content from rules.md
+            
+        Returns:
+            Formatted detailed prompt string for vision analysis
+        """
+        
+        rules_excerpt = rules_content[:800] if rules_content else "No custom rules loaded"
+        
+        # Safe metric access with fallbacks
+        typo_score = getattr(metrics, 'typography', {}).get('score', 0) if hasattr(metrics, 'typography') else 0
+        color_score = getattr(metrics, 'color', {}).get('score', 0) if hasattr(metrics, 'color') else 0
+        layout_score = getattr(metrics, 'layout', {}).get('score', 0) if hasattr(metrics, 'layout') else 0
+        resp_score = getattr(metrics, 'responsiveness', {}).get('score', 0) if hasattr(metrics, 'responsiveness') else 0
+        access_score = getattr(metrics, 'accessibility', {}).get('score', 0) if hasattr(metrics, 'accessibility') else 0
+        
+        prompt = f"""You are a senior UI/UX designer with advanced computer vision capabilities analyzing this website screenshot: {url}
+
+🎯 MISSION: Provide expert design analysis based EXCLUSIVELY on visual observation of the screenshot.
+
+📸 SCREENSHOT ANALYSIS PROTOCOL:
+
+**STEP 1: VISUAL CONFIRMATION**
+- Explicitly confirm you can see the website screenshot
+- Describe the immediate visual impression (layout structure, dominant colors, content type)
+
+**STEP 2: DESIGN EVALUATION (Rate each 1-10)**
+
+🎨 **VISUAL HIERARCHY & LAYOUT**
+- Information architecture clarity from visual structure
+- Grid system adherence and spacing consistency
+- Content flow and visual balance observed
+- White space utilization and breathing room
+
+✍️ **TYPOGRAPHY & READABILITY** 
+- Font selection appropriateness for brand/purpose
+- Text size hierarchy effectiveness (H1, H2, body text)
+- Reading flow and text contrast ratios
+- Content density and paragraph structure
+
+🌈 **COLOR & VISUAL DESIGN**
+- Color scheme harmony and brand consistency
+- Accessibility of color choices (contrast, readability)
+- Visual emphasis and call-to-action prominence
+- Overall aesthetic appeal and professionalism
+
+🖱️ **UI/UX ELEMENTS**
+- Navigation clarity and intuitive structure
+- Button design and interactive element visibility
+- Mobile responsiveness indicators (if applicable)
+- User experience flow and ease of use
+
+**STEP 3: TECHNICAL ASSESSMENT**
+- Visual consistency across interface elements
+- Potential accessibility issues visible
+- Professional polish and attention to detail
+- Any visual bugs or alignment problems
+
+**DESIGN RULES CONTEXT**:
+{rules_excerpt}
+
+**AUTOMATED ANALYSIS REFERENCE**:
+• Typography Score: {typo_score}/100
+• Color Score: {color_score}/100  
+• Layout Score: {layout_score}/100
+• Responsiveness: {resp_score}/100
+• Accessibility: {access_score}/100
+
+**FINAL DELIVERABLE**:
+1. Screenshot confirmation with visual description
+2. Specific design observations and ratings
+3. Top 3 strengths and 3 improvement areas
+4. Overall visual quality score (1-10)
+5. Actionable recommendations
+
+**CRITICAL**: Base analysis ONLY on visual elements you can actually observe in the screenshot. Mention specific colors, text, spacing, and layout details you see.
+
+Target: 500-700 words with precise visual observations."""
+
+        return prompt
+    
+    @staticmethod
+    def create_quick_vision_prompt(url: str) -> str:
+        """
+        Create a quick prompt for basic vision analysis without detailed metrics.
+        
+        Args:
+            url: Website URL being analyzed
+            
+        Returns:
+            Formatted quick prompt string for basic vision analysis
+        """
+        
+        prompt = f"""Analyze this website screenshot for: {url}
+
+You are a UX expert. Look at the screenshot and provide:
+
+1. **Visual Confirmation**: Confirm you can see the screenshot and describe what's visible
+2. **Quick Assessment**: Rate the design quality (1-10) based on:
+   - Layout and visual hierarchy
+   - Color scheme and typography
+   - Overall user experience
+3. **Key Observations**: 2-3 specific visual elements you notice
+4. **Improvement Suggestion**: 1 main recommendation
+
+Keep it concise but demonstrate you're actually seeing the screenshot by mentioning specific visual details.
+
+Limit: 200 words."""
+
+        return prompt
+
+
+class PromptTemplates:
+    """Template strings for common prompt patterns."""
+    
+    VISION_VERIFICATION = """
+CRITICAL: You MUST look at and analyze the provided screenshot image. 
+Your analysis should be based entirely on what you can SEE in the screenshot.
+Confirm you can see the screenshot and describe what's visible.
+"""
+    
+    ANALYSIS_REQUIREMENTS = """
+**IMPORTANT**: Your analysis must demonstrate you're actually looking at the screenshot. 
+Mention specific visual elements, colors, text, and layout details you observe.
+"""
+    
+    SCORING_INSTRUCTION = """
+Provide specific, actionable feedback based entirely on visual observation.
+Give a final visual quality score (1-10) based on what you see.
+Focus ONLY on what you can actually SEE and READ in the screenshot.
+"""
+
+
+# Export the main prompt class for easy importing
+__all__ = ['VisionAnalysisPrompts', 'PromptTemplates']

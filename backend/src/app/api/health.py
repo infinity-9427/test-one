@@ -168,9 +168,10 @@ async def health_check():
         )
         
     except Exception as e:
+        print(f"Health check failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Health check failed: {str(e)}"
+            detail="We're experiencing technical difficulties with the health check. Please try again later."
         )
 
 

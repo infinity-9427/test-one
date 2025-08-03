@@ -1,0 +1,364 @@
+"""
+API endpoints for AI-powered design analysis.
+"""
+from fastapi import APIRouter, HTTPException, BackgroundTasks
+from pydantic import BaseModel, HttpUrl
+from typing import Dict, Any, Optional
+import asyncio
+from datetime import datetime
+
+from ..services.screenshot import screenshot_service
+from ..services.ai_analysis import ai_analysis_service
+from ..services.cloudinary import cloudinary_service
+
+router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
+
+# Request/Response Models
+class AnalysisRequest(BaseModel):
+    """Request model for website analysis."""
+    url: HttpUrl
+    include_mobile: bool = True
+    include_llm_analysis: bool = True
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "url": "https://example.com",
+                "include_mobile": True,
+                "include_llm_analysis": True
+            }
+        }
+    }
+
+class AnalysisStatus(BaseModel):
+    """Analysis status response."""
+    analysis_id: str
+    status: str  # "pending", "processing", "completed", "error"
+    url: str
+    created_at: str
+    estimated_completion: Optional[str] = None
+    progress: Optional[Dict[str, Any]] = None
+
+class AnalysisResult(BaseModel):
+    """Complete analysis result."""
+    analysis_id: str
+    url: str
+    status: str
+    analyzed_at: str
+    analysis_duration: float
+    overall_score: float
+    scores_breakdown: Dict[str, float]
+    rule_based_metrics: Dict[str, Any]
+    llm_analysis: Dict[str, Any]
+    screenshots: Dict[str, Any]
+    weights_applied: Dict[str, float]
+    rules_version: str
+    error: Optional[str] = None
+
+# In-memory storage for analysis results (in production, use Redis or database)
+analysis_results: Dict[str, Dict[str, Any]] = {}
+
+@router.post("/analyze", response_model=AnalysisStatus)
+async def start_analysis(
+    request: AnalysisRequest,
+    background_tasks: BackgroundTasks
+) -> AnalysisStatus:
+    """
+    Start website design analysis.
+    
+    Returns immediately with analysis ID for status polling.
+    """
+    try:
+        # Generate analysis ID
+        analysis_id = f"analysis_{int(datetime.now().timestamp())}"
+        
+        # Store initial status
+        analysis_results[analysis_id] = {
+            "analysis_id": analysis_id,
+            "url": str(request.url),
+            "status": "pending",
+            "created_at": datetime.now().isoformat(),
+            "progress": {"stage": "initializing", "percentage": 0}
+        }
+        
+        # Start background analysis
+        background_tasks.add_task(
+            run_analysis_background,
+            analysis_id,
+            str(request.url),
+            request.include_mobile,
+            request.include_llm_analysis
+        )
+        
+        return AnalysisStatus(
+            analysis_id=analysis_id,
+            status="pending",
+            url=str(request.url),
+            created_at=datetime.now().isoformat(),
+            estimated_completion=None,
+            progress={"stage": "initializing", "percentage": 0}
+        )
+        
+    except Exception as e:
+        print(f"Failed to start analysis: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="We're experiencing technical difficulties starting the analysis. Please try again later."
+        )
+
+@router.get("/status/{analysis_id}", response_model=AnalysisStatus)
+async def get_analysis_status(analysis_id: str) -> AnalysisStatus:
+    """Get analysis status by ID."""
+    try:
+        if analysis_id not in analysis_results:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Analysis {analysis_id} not found"
+            )
+        
+        result = analysis_results[analysis_id]
+        
+        return AnalysisStatus(
+            analysis_id=result["analysis_id"],
+            status=result["status"],
+            url=result["url"],
+            created_at=result["created_at"],
+            estimated_completion=result.get("estimated_completion"),
+            progress=result.get("progress")
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Failed to get analysis status: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="We're experiencing technical difficulties retrieving the analysis status. Please try again later."
+        )
+
+@router.get("/result/{analysis_id}", response_model=AnalysisResult)
+async def get_analysis_result(analysis_id: str) -> AnalysisResult:
+    """Get complete analysis result by ID."""
+    try:
+        if analysis_id not in analysis_results:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Analysis {analysis_id} not found"
+            )
+        
+        result = analysis_results[analysis_id]
+        
+        if result["status"] != "completed":
+            raise HTTPException(
+                status_code=202,  # Accepted but not ready
+                detail=f"Analysis is still {result['status']}. Check status endpoint."
+            )
+        
+        return AnalysisResult(**result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Failed to get analysis result: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="We're experiencing technical difficulties retrieving the analysis results. Please try again later."
+        )
+
+@router.delete("/result/{analysis_id}")
+async def delete_analysis_result(analysis_id: str) -> Dict[str, str]:
+    """Delete analysis result by ID."""
+    try:
+        if analysis_id not in analysis_results:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Analysis {analysis_id} not found"
+            )
+        
+        del analysis_results[analysis_id]
+        
+        return {"message": f"Analysis {analysis_id} deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Failed to delete analysis: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="We're experiencing technical difficulties deleting the analysis. Please try again later."
+        )
+
+@router.get("/list")
+async def list_analyses() -> Dict[str, Any]:
+    """List all analysis results with basic info."""
+    try:
+        analyses = []
+        for analysis_id, result in analysis_results.items():
+            analyses.append({
+                "analysis_id": analysis_id,
+                "url": result["url"],
+                "status": result["status"],
+                "created_at": result["created_at"],
+                "overall_score": result.get("overall_score", 0)
+            })
+        
+        return {
+            "total": len(analyses),
+            "analyses": sorted(analyses, key=lambda x: x["created_at"], reverse=True)
+        }
+        
+    except Exception as e:
+        print(f"Failed to list analyses: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="We're experiencing technical difficulties retrieving the analysis list. Please try again later."
+        )
+
+async def run_analysis_background(
+    analysis_id: str,
+    url: str,
+    include_mobile: bool,
+    include_llm_analysis: bool
+):
+    """Background task to run the complete analysis."""
+    try:
+        # Update status
+        analysis_results[analysis_id]["status"] = "processing"
+        analysis_results[analysis_id]["progress"] = {
+            "stage": "capturing_screenshots",
+            "percentage": 10
+        }
+        
+        # Step 1: Capture screenshots
+        print(f"Starting screenshot capture for {url}")
+        try:
+            if include_mobile:
+                screenshot_data = await screenshot_service.capture_both_viewports(url)
+            else:
+                desktop_screenshot = await screenshot_service.capture_screenshot(url, "desktop")
+                screenshot_data = {
+                    "url": url,
+                    "captured_at": datetime.now().isoformat(),
+                    "desktop": desktop_screenshot,
+                    "mobile": None,
+                    "errors": {}
+                }
+        except Exception as e:
+            print(f"Screenshot capture failed for {url}: {e}")
+            raise Exception("We're experiencing issues capturing website screenshots. Please try again later.")
+        
+        # Update progress
+        analysis_results[analysis_id]["progress"] = {
+            "stage": "uploading_to_cloudinary",
+            "percentage": 30
+        }
+        
+        # Step 2: Upload to Cloudinary (if configured)
+        try:
+            if cloudinary_service.is_configured():
+                if screenshot_data.get("desktop"):
+                    desktop_upload = await cloudinary_service.upload_screenshot(
+                        screenshot_data["desktop"]["local_path"],
+                        screenshot_data["desktop"]
+                    )
+                    screenshot_data["desktop"]["cloudinary_url"] = desktop_upload["cloudinary_url"]
+                    screenshot_data["desktop"]["cloudinary_public_id"] = desktop_upload["cloudinary_public_id"]
+                
+                if screenshot_data.get("mobile"):
+                    mobile_upload = await cloudinary_service.upload_screenshot(
+                        screenshot_data["mobile"]["local_path"],
+                        screenshot_data["mobile"]
+                    )
+                    screenshot_data["mobile"]["cloudinary_url"] = mobile_upload["cloudinary_url"]
+                    screenshot_data["mobile"]["cloudinary_public_id"] = mobile_upload["cloudinary_public_id"]
+            else:
+                print("Cloudinary not configured, skipping upload")
+                
+        except Exception as e:
+            print(f"Cloudinary upload failed: {e}")
+            # Continue without Cloudinary URLs - this is optional
+        
+        # Update progress
+        analysis_results[analysis_id]["progress"] = {
+            "stage": "running_ai_analysis",
+            "percentage": 60
+        }
+        
+        # Step 3: Run AI analysis
+        print(f"Starting AI analysis for {url}")
+        try:
+            ai_result = await ai_analysis_service.analyze_website_design(url, screenshot_data)
+        except Exception as e:
+            print(f"AI analysis failed for {url}: {e}")
+            raise Exception("We're experiencing issues with our AI analysis service. Please try again later.")
+        
+        # Update progress
+        analysis_results[analysis_id]["progress"] = {
+            "stage": "finalizing",
+            "percentage": 90
+        }
+        
+        # Step 4: Store final result
+        analysis_results[analysis_id].update(ai_result)
+        analysis_results[analysis_id]["status"] = "completed"
+        analysis_results[analysis_id]["progress"] = {
+            "stage": "completed",
+            "percentage": 100
+        }
+        
+        print(f"Analysis completed for {url} with score: {ai_result.get('overall_score', 0)}")
+        
+    except Exception as e:
+        print(f"Analysis failed for {url}: {e}")
+        
+        # Determine user-friendly error message
+        error_message = str(e)
+        if "We're experiencing" not in error_message:
+            error_message = "We're experiencing technical difficulties. Please try again later."
+        
+        analysis_results[analysis_id].update({
+            "status": "error",
+            "error": error_message,
+            "overall_score": 0,
+            "analyzed_at": datetime.now().isoformat(),
+            "progress": {
+                "stage": "error",
+                "percentage": 0
+            }
+        })
+
+@router.get("/health")
+async def analysis_health_check() -> Dict[str, Any]:
+    """Health check for analysis services."""
+    try:
+        health_status = {
+            "analysis_service": "healthy",
+            "screenshot_service": "healthy",
+            "ai_service": "healthy",
+            "ollama_connection": False,
+            "cloudinary_connection": False,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Check Ollama connection
+        try:
+            ollama_healthy = await ai_analysis_service.ollama_client.check_health()
+            health_status["ollama_connection"] = ollama_healthy
+        except Exception as e:
+            health_status["ollama_error"] = str(e)
+        
+        # Check Cloudinary connection  
+        try:
+            cloudinary_healthy = await cloudinary_service.test_connection()
+            health_status["cloudinary_connection"] = cloudinary_healthy
+        except Exception as e:
+            health_status["cloudinary_error"] = str(e)
+        
+        return health_status
+        
+    except Exception as e:
+        print(f"Health check failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="We're experiencing technical difficulties with the health check. Please try again later."
+        )

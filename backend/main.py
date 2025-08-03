@@ -18,6 +18,7 @@ import uvicorn
 from src.app.core.settings import settings
 from src.app.api.health import router as health_router
 from src.app.api.screenshots import router as screenshots_router
+from src.app.api.analysis import router as analysis_router
 
 
 @asynccontextmanager
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(screenshots_router, prefix="/api/v1/screenshots")
+    app.include_router(analysis_router)
     
     return app
 

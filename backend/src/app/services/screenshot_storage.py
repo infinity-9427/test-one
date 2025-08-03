@@ -27,29 +27,25 @@ class ScreenshotStorageService:
                 "url": url,
                 "viewport_type": viewport_type,
                 "screenshot_data": screenshot_data,
-                "storage_data": None,
-                "errors": []
+                "storage_data": None
             }
             
             # Upload to cloud if requested and configured
-            if upload_to_cloud and self.cloudinary_service.is_configured():
-                try:
-                    storage_data = await self.cloudinary_service.upload_screenshot(
-                        screenshot_data["local_path"],
-                        screenshot_data
-                    )
-                    result["storage_data"] = storage_data
-                    
-                except Exception as storage_error:
-                    result["errors"].append(f"Cloud storage failed: {str(storage_error)}")
-            
-            elif upload_to_cloud and not self.cloudinary_service.is_configured():
-                result["errors"].append("Cloud storage requested but Cloudinary not configured")
+            if upload_to_cloud:
+                if not self.cloudinary_service.is_configured():
+                    raise Exception("Cloud storage requested but Cloudinary is not configured")
+                
+                storage_data = await self.cloudinary_service.upload_screenshot(
+                    screenshot_data["local_path"],
+                    screenshot_data
+                )
+                result["storage_data"] = storage_data
             
             return result
             
         except Exception as e:
-            raise Exception(f"Screenshot capture and storage failed: {str(e)}")
+            print(f"Screenshot capture and storage failed for {url}: {e}")
+            raise Exception("We're experiencing issues with screenshot capture and storage. Please try again later.")
     
     async def capture_and_store_both_viewports(
         self, 
@@ -64,27 +60,25 @@ class ScreenshotStorageService:
                 "url": url,
                 "captured_at": datetime.now().isoformat(),
                 "desktop": None,
-                "mobile": None,
-                "errors": screenshots.get("errors", {})
+                "mobile": None
             }
             
             # Process desktop screenshot
             if screenshots.get("desktop"):
                 desktop_result = {
                     "screenshot_data": screenshots["desktop"],
-                    "storage_data": None,
-                    "storage_error": None
+                    "storage_data": None
                 }
                 
-                if upload_to_cloud and self.cloudinary_service.is_configured():
-                    try:
-                        storage_data = await self.cloudinary_service.upload_screenshot(
-                            screenshots["desktop"]["local_path"],
-                            screenshots["desktop"]
-                        )
-                        desktop_result["storage_data"] = storage_data
-                    except Exception as e:
-                        desktop_result["storage_error"] = str(e)
+                if upload_to_cloud:
+                    if not self.cloudinary_service.is_configured():
+                        raise Exception("Cloud storage requested but Cloudinary is not configured")
+                    
+                    storage_data = await self.cloudinary_service.upload_screenshot(
+                        screenshots["desktop"]["local_path"],
+                        screenshots["desktop"]
+                    )
+                    desktop_result["storage_data"] = storage_data
                 
                 result["desktop"] = desktop_result
             
@@ -92,26 +86,26 @@ class ScreenshotStorageService:
             if screenshots.get("mobile"):
                 mobile_result = {
                     "screenshot_data": screenshots["mobile"],
-                    "storage_data": None,
-                    "storage_error": None
+                    "storage_data": None
                 }
                 
-                if upload_to_cloud and self.cloudinary_service.is_configured():
-                    try:
-                        storage_data = await self.cloudinary_service.upload_screenshot(
-                            screenshots["mobile"]["local_path"],
-                            screenshots["mobile"]
-                        )
-                        mobile_result["storage_data"] = storage_data
-                    except Exception as e:
-                        mobile_result["storage_error"] = str(e)
+                if upload_to_cloud:
+                    if not self.cloudinary_service.is_configured():
+                        raise Exception("Cloud storage requested but Cloudinary is not configured")
+                    
+                    storage_data = await self.cloudinary_service.upload_screenshot(
+                        screenshots["mobile"]["local_path"],
+                        screenshots["mobile"]
+                    )
+                    mobile_result["storage_data"] = storage_data
                 
                 result["mobile"] = mobile_result
             
             return result
             
         except Exception as e:
-            raise Exception(f"Multi-viewport capture and storage failed: {str(e)}")
+            print(f"Multi-viewport capture and storage failed for {url}: {e}")
+            raise Exception("We're experiencing issues with screenshot capture and storage. Please try again later.")
 
 
 # Global service instance

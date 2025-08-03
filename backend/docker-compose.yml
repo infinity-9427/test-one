@@ -1,22 +1,22 @@
-version: '3.8'
-
 services:
   # Ollama service for Llama3
   ollama:
     image: ollama/ollama:latest
-    container_name: ollama
+    container_name: website-scorer-ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     environment:
       - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 60s
 
   # FastAPI backend service
   backend:
@@ -25,35 +25,57 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
-      - /app/__pycache__
+      - ./cache:/app/cache
+      - ./screenshots:/app/screenshots
     environment:
-      - OLLAMA_HOST=ollama
-      - OLLAMA_PORT=11434
-      - ENVIRONMENT=development
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-phi4}
+      - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT:-240}
+      - ENVIRONMENT=${ENVIRONMENT:-local}
+      - DEBUG=${DEBUG:-true}
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - CACHE_DIR=/app/cache
+      - PLAYWRIGHT_HEADLESS=${PLAYWRIGHT_HEADLESS:-true}
+      - PLAYWRIGHT_TIMEOUT=${PLAYWRIGHT_TIMEOUT:-30000}
     depends_on:
       ollama:
         condition: service_healthy
     restart: unless-stopped
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-  # Initialize Ollama with Llama3 model
+  # Initialize Ollama with specified model from .env
   ollama-init:
     image: ollama/ollama:latest
-    container_name: ollama-init
+    container_name: website-scorer-ollama-init
     depends_on:
       ollama:
         condition: service_healthy
     volumes:
       - ollama_data:/root/.ollama
-    entrypoint: >
-      sh -c "
-        echo 'Pulling Llama3 model...' &&
-        ollama pull llama3 &&
-        echo 'Llama3 model ready!'
-      "
     environment:
       - OLLAMA_HOST=ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-phi4}
+    entrypoint: >
+      sh -c "
+        echo 'Waiting for Ollama to be ready...' &&
+        sleep 10 &&
+        echo 'Checking if model $${OLLAMA_MODEL} is already available...' &&
+        if ollama list | grep -q $${OLLAMA_MODEL}; then
+          echo 'Model $${OLLAMA_MODEL} already exists, skipping download.'
+        else
+          echo 'Pulling model: $${OLLAMA_MODEL}...' &&
+          ollama pull $${OLLAMA_MODEL} &&
+          echo 'Model $${OLLAMA_MODEL} successfully downloaded!'
+        fi &&
+        echo 'Available models:' &&
+        ollama list
+      "
+    restart: "no"
 
 volumes:
   ollama_data:
+    driver: local
+
+networks:
+  default:
+    name: website-scorer-network

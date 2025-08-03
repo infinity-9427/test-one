@@ -12,6 +12,7 @@ from ..services.screenshot_storage import screenshot_storage_service
 class ScreenshotRequest(BaseModel):
     url: HttpUrl = Field(..., description="Website URL to capture")
     upload_to_cloud: bool = Field(default=True, description="Upload to cloud storage")
+    capture_mode: str = Field(default="viewport", description="Capture mode: 'viewport' for consistent dimensions, 'full_page' for variable height")
 
 
 class ScreenshotResponse(BaseModel):
@@ -28,6 +29,10 @@ router = APIRouter(tags=["Screenshots"])
 async def capture_screenshots(request: ScreenshotRequest):
 
     try:
+        # Set capture mode based on request
+        if request.capture_mode in ["viewport", "full_page"]:
+            screenshot_storage_service.screenshot_service.set_capture_mode(request.capture_mode)
+        
         # Capture both viewports
         result = await screenshot_storage_service.capture_and_store_both_viewports(
             url=str(request.url),
@@ -41,7 +46,8 @@ async def capture_screenshots(request: ScreenshotRequest):
         )
         
     except Exception as e:
+        print(f"Screenshot capture failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Screenshot capture failed: {str(e)}"
+            detail="We're experiencing technical difficulties with screenshot capture. Please try again later."
         )

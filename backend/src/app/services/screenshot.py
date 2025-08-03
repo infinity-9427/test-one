@@ -89,15 +89,36 @@ class ScreenshotCache:
 class ScreenshotService:
     """Screenshot capture service with Playwright."""
     
-    # Standard viewports
+    # Standard viewports with consistent dimensions
     DESKTOP_VIEWPORT = {"width": 1200, "height": 800}
     MOBILE_VIEWPORT = {"width": 375, "height": 667}
+    
+    # Screenshot capture modes
+    CAPTURE_VIEWPORT_ONLY = "viewport"  # Fixed viewport size
+    CAPTURE_FULL_PAGE = "full_page"     # Full page height (variable)
     
     def __init__(self):
         self.cache = ScreenshotCache(
             cache_dir=settings.cache_dir,
             ttl_hours=settings.cache_ttl_hours
         ) if settings.cache_enabled else None
+        # Default to viewport-only capture for consistent dimensions
+        self.capture_mode = self.CAPTURE_VIEWPORT_ONLY
+    
+    def set_capture_mode(self, mode: str) -> None:
+        """
+        Set screenshot capture mode.
+        
+        Args:
+            mode: "viewport" for consistent dimensions, "full_page" for variable height
+        """
+        if mode not in [self.CAPTURE_VIEWPORT_ONLY, self.CAPTURE_FULL_PAGE]:
+            raise ValueError(f"Invalid capture mode: {mode}")
+        self.capture_mode = mode
+    
+    def get_capture_mode(self) -> str:
+        """Get current capture mode."""
+        return self.capture_mode
     
     def _validate_url(self, url: str) -> bool:
         """Validate URL format."""
@@ -111,7 +132,8 @@ class ScreenshotService:
         self, 
         url: str, 
         viewport: Dict[str, int],
-        timeout: Optional[int] = None
+        timeout: Optional[int] = None,
+        capture_mode: str = "viewport"
     ) -> Tuple[str, Dict[str, Any]]:
         """Capture screenshot using Playwright."""
         timeout = timeout or settings.playwright_timeout
@@ -150,17 +172,28 @@ class ScreenshotService:
                     # Wait for page to be fully loaded
                     await page.wait_for_load_state('networkidle')
                     
-                    # Take screenshot
+                    # Take screenshot with consistent dimensions
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"screenshot_{timestamp}_{viewport['width']}x{viewport['height']}.png"
                     local_path = self.cache.cache_dir / filename if self.cache else Path(f"./screenshots/{filename}")
                     local_path.parent.mkdir(parents=True, exist_ok=True)
                     
-                    screenshot_bytes = await page.screenshot(
-                        path=str(local_path),
-                        full_page=True,
-                        type='png'
-                    )
+                    # Choose capture mode for consistent dimensions
+                    if capture_mode == self.CAPTURE_VIEWPORT_ONLY:
+                        # Capture only the viewport size for consistent dimensions
+                        screenshot_bytes = await page.screenshot(
+                            path=str(local_path),
+                            full_page=False,  # Keep viewport dimensions
+                            type='png',
+                            clip={'x': 0, 'y': 0, 'width': viewport['width'], 'height': viewport['height']}
+                        )
+                    else:
+                        # Capture full page (variable height)
+                        screenshot_bytes = await page.screenshot(
+                            path=str(local_path),
+                            full_page=True,
+                            type='png'
+                        )
                     
                     # Get page title and basic metrics
                     title = await page.title()
@@ -214,8 +247,10 @@ class ScreenshotService:
                         "from_cache": True
                     }
             
-            # Capture new screenshot
-            local_path, page_metrics = await self._capture_screenshot_with_playwright(url, viewport)
+            # Capture new screenshot with consistent dimensions
+            local_path, page_metrics = await self._capture_screenshot_with_playwright(
+                url, viewport, capture_mode=self.capture_mode
+            )
             
             result = {
                 "url": url,
@@ -234,9 +269,11 @@ class ScreenshotService:
             return result
             
         except ValueError as e:
-            raise e
+            print(f"Invalid URL for {url}: {e}")
+            raise Exception("Invalid URL provided. Please check the URL format and try again.")
         except Exception as e:
-            raise Exception(f"Screenshot service error: {str(e)}")
+            print(f"Screenshot service error for {url}: {e}")
+            raise Exception("We're experiencing issues capturing website screenshots. Please try again later.")
     
     async def capture_both_viewports(self, url: str) -> Dict[str, Any]:
         """
@@ -249,44 +286,23 @@ class ScreenshotService:
             Dictionary with both desktop and mobile screenshots
         """
         try:
-            # Capture both viewports concurrently
-            desktop_task = asyncio.create_task(self.capture_screenshot(url, "desktop"))
-            mobile_task = asyncio.create_task(self.capture_screenshot(url, "mobile"))
-            
-            desktop_result, mobile_result = await asyncio.gather(
-                desktop_task, 
-                mobile_task,
-                return_exceptions=True
-            )
+            # Capture both viewports concurrently - no fallbacks
+            desktop_result = await self.capture_screenshot(url, "desktop")
+            mobile_result = await self.capture_screenshot(url, "mobile")
             
             result = {
                 "url": url,
                 "captured_at": datetime.now().isoformat(),
-                "desktop": None,
-                "mobile": None,
+                "desktop": desktop_result,
+                "mobile": mobile_result,
                 "errors": {}
             }
-            
-            # Process desktop result
-            if isinstance(desktop_result, Exception):
-                result["errors"]["desktop"] = str(desktop_result)
-            else:
-                result["desktop"] = desktop_result
-            
-            # Process mobile result
-            if isinstance(mobile_result, Exception):
-                result["errors"]["mobile"] = str(mobile_result)
-            else:
-                result["mobile"] = mobile_result
-            
-            # Check if we have at least one successful capture
-            if not result["desktop"] and not result["mobile"]:
-                raise Exception(f"Failed to capture both viewports: {result['errors']}")
             
             return result
             
         except Exception as e:
-            raise Exception(f"Multi-viewport capture failed: {str(e)}")
+            print(f"Multi-viewport capture failed for {url}: {e}")
+            raise Exception("We're experiencing issues capturing website screenshots. Please try again later.")
 
 
 # Global service instance
