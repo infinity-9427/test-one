@@ -3,6 +3,7 @@ import asyncio
 import base64
 import json
 import re
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -15,6 +16,7 @@ from PIL import Image
 
 from ..core.settings import settings
 from .prompts import VisionAnalysisPrompts
+from .weights_config import weights_config
 
 
 class DesignMetrics:
@@ -492,7 +494,7 @@ class OllamaClient:
             return False
     
     def _encode_image_base64(self, image_path: str) -> str:
-        """Encode image to base64 for vision models with validation."""
+        """Encode image to base64 for vision models with validation and optimization."""
         try:
             # Verify file exists and is readable
             if not Path(image_path).exists():
@@ -505,6 +507,19 @@ class OllamaClient:
             if file_size > 10 * 1024 * 1024:  # 10MB limit
                 raise Exception("Screenshot file too large for vision analysis")
             
+            # OPTIMIZATION: Resize image if too large to reduce processing time
+            if file_size > 2 * 1024 * 1024:  # 2MB threshold
+                print(f"Large image detected ({file_size} bytes), resizing for faster processing")
+                # Open, resize, and compress the image
+                with Image.open(image_path) as img:
+                    # Resize to max 1920x1080 while maintaining aspect ratio
+                    img.thumbnail((1920, 1080), Image.Resampling.LANCZOS)
+                    
+                    # Save to temporary compressed version
+                    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+                        img.save(temp_file.name, 'JPEG', quality=85, optimize=True)
+                        image_path = temp_file.name
+                
             # Read and validate image
             with open(image_path, "rb") as image_file:
                 image_data = image_file.read()
@@ -522,37 +537,48 @@ class OllamaClient:
             if not encoded or len(encoded) < 100:
                 raise Exception("Image encoding failed or produced invalid result")
                 
-            print(f"Successfully encoded image: {len(encoded)} characters, {file_size} bytes")
+            print(f"Successfully encoded image: {len(encoded)} characters, {len(image_data)} bytes")
             return encoded
             
         except Exception as e:
             print(f"Image encoding error for {image_path}: {e}")
             raise Exception(f"Failed to prepare screenshot for vision analysis: {str(e)}")
     
-    async def generate_vision_analysis(self, prompt: str, image_path: str, max_tokens: int = 1000) -> str:
-        """Generate analysis using Ollama vision model with image - CORE FEATURE."""
+    async def generate_vision_analysis(self, prompt: str, image_path: str, max_tokens: int = 500) -> str:
+        """Generate analysis using Ollama vision model with image - OPTIMIZED FOR SPEED."""
+        vision_start = datetime.now()
         try:
             print(f"Starting vision analysis with image: {image_path}")
             
-            # Encode image to base64 with validation
+            # Encode image to base64 with validation and optimization
+            encoding_start = datetime.now()
             image_base64 = self._encode_image_base64(image_path)
+            encoding_time = (datetime.now() - encoding_start).total_seconds()
+            print(f"Image encoding completed in {encoding_time:.2f}s")
             
-            # Prepare payload for vision model
+            # Prepare payload for vision model - MAXIMUM SPEED OPTIMIZATIONS
             payload = {
                 "model": self.model,
                 "prompt": prompt,
                 "images": [image_base64],
                 "stream": False,
                 "options": {
-                    "temperature": 0.3,
-                    "num_predict": max_tokens,
-                    "top_p": 0.9,
-                    "repeat_penalty": 1.1
+                    "temperature": 0.05,  # Minimal randomness for speed
+                    "num_predict": 300,   # Shorter responses for speed
+                    "top_p": 0.5,         # More focused responses
+                    "repeat_penalty": 1.0, # No penalty calculation overhead
+                    "num_ctx": 1024,      # Smaller context window
+                    "num_gpu": 1,         # Force GPU usage
+                    "num_thread": 8,      # More CPU threads
+                    "use_mmap": True,     # Memory mapping for speed
+                    "use_mlock": True     # Lock model in memory
                 }
             }
             
             print(f"Sending vision request to {self.base_url}/api/generate with model {self.model}")
             
+            # Track API call time separately
+            api_start = datetime.now()
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
                     f"{self.base_url}/api/generate",
@@ -564,34 +590,39 @@ class OllamaClient:
                     raise Exception(f"Ollama API returned status {response.status_code}: {response.text}")
                 
                 result = response.json()
+            
+            api_time = (datetime.now() - api_start).total_seconds()
+            print(f"Ollama API call completed in {api_time:.2f}s")
                 
-                # Validate response structure
-                if "response" not in result:
-                    raise Exception(f"Invalid response from Ollama: {result}")
-                
-                analysis_content = result.get("response", "").strip()
-                
-                # Verify the LLM actually processed the image and gave meaningful analysis
-                if not analysis_content:
-                    raise Exception("Vision model returned empty response - may not be processing the screenshot")
-                
-                if len(analysis_content) < 100:
-                    raise Exception("Vision model returned insufficient analysis - may not be seeing the screenshot properly")
-                
-                # Check if response contains vision-specific observations
-                vision_indicators = [
-                    "see", "visible", "visual", "screenshot", "image", "display", 
-                    "color", "layout", "text", "button", "navigation", "design"
-                ]
-                
-                if not any(indicator in analysis_content.lower() for indicator in vision_indicators):
-                    raise Exception("Vision analysis doesn't contain visual observations - LLM may not be processing the screenshot")
-                
-                print(f"Vision analysis successful: {len(analysis_content)} characters of analysis")
-                return analysis_content
+            # Validate response structure
+            if "response" not in result:
+                raise Exception(f"Invalid response from Ollama: {result}")
+            
+            analysis_content = result.get("response", "").strip()
+            
+            # Verify the LLM actually processed the image and gave meaningful analysis
+            if not analysis_content:
+                raise Exception("Vision model returned empty response - may not be processing the screenshot")
+            
+            if len(analysis_content) < 50:  # Reduced minimum from 100 for faster responses
+                raise Exception("Vision model returned insufficient analysis - may not be seeing the screenshot properly")
+            
+            # Check if response contains vision-specific observations
+            vision_indicators = [
+                "see", "visible", "visual", "screenshot", "image", "display", 
+                "color", "layout", "text", "button", "navigation", "design"
+            ]
+            
+            if not any(indicator in analysis_content.lower() for indicator in vision_indicators):
+                raise Exception("Vision analysis doesn't contain visual observations - LLM may not be processing the screenshot")
+            
+            total_time = (datetime.now() - vision_start).total_seconds()
+            print(f"Vision analysis successful: {len(analysis_content)} characters in {total_time:.2f}s (encoding: {encoding_time:.2f}s, API: {api_time:.2f}s)")
+            return analysis_content
                 
         except Exception as e:
-            print(f"Vision analysis failed for {image_path}: {str(e)}")
+            total_time = (datetime.now() - vision_start).total_seconds()
+            print(f"Vision analysis failed for {image_path} after {total_time:.2f}s: {str(e)}")
             raise Exception(f"AI vision analysis failed: {str(e)}")
 
 
@@ -655,14 +686,8 @@ class AIAnalysisService:
                 metrics.accessibility["score"]
             ]
             
-            # Apply weights from rules (from rules.md context)
-            weights = {
-                "typography": 0.25,
-                "color": 0.20,
-                "layout": 0.25,
-                "responsiveness": 0.15,
-                "accessibility": 0.15
-            }
+            # Apply weights from configuration
+            weights = weights_config.get_weights()
             
             weighted_score = (
                 metrics.typography["score"] * weights["typography"] +
@@ -718,6 +743,9 @@ class AIAnalysisService:
                 # Vision analysis failed - this is our core feature, so fail the entire analysis
                 raise Exception(f"Vision analysis is required but failed: {llm_error}")
             
+            # Get score category for overall assessment
+            score_category = weights_config.get_score_category(weighted_score)
+            
             analysis_result = {
                 "analysis_id": f"analysis_{int(analysis_start.timestamp())}",
                 "url": url,
@@ -725,9 +753,10 @@ class AIAnalysisService:
                 "analysis_duration": (datetime.now() - analysis_start).total_seconds(),
                 "status": "completed",
                 
-                # Scores
+                # Main Scores for Report Header
                 "overall_score": round(weighted_score, 1),
-                "rule_based_score": round(weighted_score, 1),
+                "score_category": score_category,
+                "score_grade": self._get_score_grade(weighted_score),
                 "scores_breakdown": {
                     "typography": round(metrics.typography["score"], 1),
                     "color": round(metrics.color["score"], 1),
@@ -736,7 +765,57 @@ class AIAnalysisService:
                     "accessibility": round(metrics.accessibility["score"], 1)
                 },
                 
-                # Detailed metrics
+                # Report Summary for Executive Overview
+                "report_summary": {
+                    "website_title": screenshot_data.get("desktop", {}).get("page_metrics", {}).get("title", "Unknown"),
+                    "evaluation_date": analysis_start.strftime("%B %d, %Y"),
+                    "evaluation_time": analysis_start.strftime("%I:%M %p"),
+                    "total_issues_found": self._count_total_issues(metrics),
+                    "critical_issues": self._get_critical_issues(metrics),
+                    "strengths": self._get_strengths(metrics),
+                    "improvement_areas": self._get_improvement_areas(metrics)
+                },
+                
+                # Detailed Analysis for Each Category
+                "detailed_analysis": {
+                    "typography": {
+                        "score": round(metrics.typography["score"], 1),
+                        "grade": self._get_score_grade(metrics.typography["score"]),
+                        "summary": self._get_typography_summary(metrics.typography),
+                        "issues": self._get_typography_issues(metrics.typography),
+                        "recommendations": self._get_typography_recommendations(metrics.typography)
+                    },
+                    "color": {
+                        "score": round(metrics.color["score"], 1),
+                        "grade": self._get_score_grade(metrics.color["score"]),
+                        "summary": self._get_color_summary(metrics.color),
+                        "issues": self._get_color_issues(metrics.color),
+                        "recommendations": self._get_color_recommendations(metrics.color)
+                    },
+                    "layout": {
+                        "score": round(metrics.layout["score"], 1),
+                        "grade": self._get_score_grade(metrics.layout["score"]),
+                        "summary": self._get_layout_summary(metrics.layout),
+                        "issues": self._get_layout_issues(metrics.layout),
+                        "recommendations": self._get_layout_recommendations(metrics.layout)
+                    },
+                    "responsiveness": {
+                        "score": round(metrics.responsiveness["score"], 1),
+                        "grade": self._get_score_grade(metrics.responsiveness["score"]),
+                        "summary": self._get_responsiveness_summary(metrics.responsiveness),
+                        "issues": self._get_responsiveness_issues(metrics.responsiveness),
+                        "recommendations": self._get_responsiveness_recommendations(metrics.responsiveness)
+                    },
+                    "accessibility": {
+                        "score": round(metrics.accessibility["score"], 1),
+                        "grade": self._get_score_grade(metrics.accessibility["score"]),
+                        "summary": self._get_accessibility_summary(metrics.accessibility),
+                        "issues": self._get_accessibility_issues(metrics.accessibility),
+                        "recommendations": self._get_accessibility_recommendations(metrics.accessibility)
+                    }
+                },
+                
+                # Raw Metrics for Technical Details
                 "rule_based_metrics": {
                     "typography": metrics.typography,
                     "color": metrics.color,
@@ -745,20 +824,21 @@ class AIAnalysisService:
                     "accessibility": metrics.accessibility
                 },
                 
-                # LLM analysis - confirmed to contain vision analysis
+                # AI Vision Analysis
                 "llm_analysis": {
                     "content": llm_analysis,
                     "error": None,
                     "model_used": self.ollama_client.model,
-                    "vision_analysis": True  # Flag to confirm this used vision
+                    "vision_analysis": True
                 },
                 
-                # Screenshots
+                # Screenshots for Report
                 "screenshots": screenshot_data,
                 
-                # Metadata
+                # Configuration & Metadata
                 "weights_applied": weights,
-                "rules_version": "v1.0"
+                "rules_version": weights_config.get_version(),
+                "thresholds": weights_config.get_thresholds()
             }
             
             return analysis_result
@@ -767,6 +847,248 @@ class AIAnalysisService:
             # Proper error handling - no fallback responses
             print(f"Analysis failed for {url}: {str(e)}")
             raise Exception(f"We're experiencing technical issues with our analysis service. Please try again later.")
+
+    def _get_score_grade(self, score: float) -> str:
+        """Convert numeric score to letter grade."""
+        if score >= 90:
+            return "A"
+        elif score >= 80:
+            return "B"
+        elif score >= 70:
+            return "C"
+        elif score >= 60:
+            return "D"
+        else:
+            return "F"
+    
+    def _count_total_issues(self, metrics) -> int:
+        """Count total issues across all categories."""
+        total = 0
+        total += len(metrics.typography.get("contrast_violations", []))
+        total += len(metrics.color.get("harmony_violations", []))
+        total += len(metrics.layout.get("grid_violations", []))
+        total += len(metrics.responsiveness.get("touch_target_violations", []))
+        total += len(metrics.accessibility.get("missing_alt_text", []))
+        total += len(metrics.accessibility.get("aria_violations", []))
+        return total
+    
+    def _get_critical_issues(self, metrics) -> list:
+        """Get list of critical issues that need immediate attention."""
+        issues = []
+        
+        # Accessibility issues are critical
+        if len(metrics.accessibility.get("missing_alt_text", [])) > 5:
+            issues.append("Multiple images missing alt text")
+        if len(metrics.accessibility.get("aria_violations", [])) > 0:
+            issues.append("ARIA accessibility violations detected")
+        
+        # Responsiveness issues
+        if len(metrics.responsiveness.get("image_scaling_issues", [])) > 10:
+            issues.append("Significant mobile responsiveness problems")
+        
+        # Low scores
+        if metrics.accessibility["score"] < 30:
+            issues.append("Poor accessibility compliance")
+        if metrics.responsiveness["score"] < 30:
+            issues.append("Poor mobile experience")
+        
+        return issues
+    
+    def _get_strengths(self, metrics) -> list:
+        """Identify design strengths."""
+        strengths = []
+        
+        if metrics.typography["score"] >= 80:
+            strengths.append("Excellent typography and readability")
+        if metrics.color["score"] >= 80:
+            strengths.append("Good color scheme and harmony")
+        if metrics.layout["score"] >= 80:
+            strengths.append("Well-structured layout and spacing")
+        if metrics.accessibility["score"] >= 80:
+            strengths.append("Good accessibility compliance")
+        if metrics.responsiveness["score"] >= 80:
+            strengths.append("Mobile-friendly design")
+        
+        return strengths if strengths else ["Basic functionality is working"]
+    
+    def _get_improvement_areas(self, metrics) -> list:
+        """Identify areas needing improvement."""
+        areas = []
+        
+        if metrics.typography["score"] < 70:
+            areas.append("Typography and text readability")
+        if metrics.color["score"] < 70:
+            areas.append("Color scheme and visual harmony")
+        if metrics.layout["score"] < 70:
+            areas.append("Layout structure and spacing")
+        if metrics.accessibility["score"] < 70:
+            areas.append("Accessibility compliance")
+        if metrics.responsiveness["score"] < 70:
+            areas.append("Mobile responsiveness")
+        
+        return areas
+    
+    # Typography helper methods
+    def _get_typography_summary(self, typography_metrics: dict) -> str:
+        """Generate typography analysis summary."""
+        score = typography_metrics["score"]
+        if score >= 90:
+            return "Excellent typography with clear hierarchy and readability"
+        elif score >= 70:
+            return "Good typography with minor areas for improvement"
+        else:
+            return "Typography needs significant improvement for better readability"
+    
+    def _get_typography_issues(self, typography_metrics: dict) -> list:
+        """Get typography issues."""
+        issues = []
+        if len(typography_metrics.get("contrast_violations", [])) > 0:
+            issues.append(f"{len(typography_metrics['contrast_violations'])} text contrast violations")
+        if typography_metrics.get("base_font_size", 16) < 14:
+            issues.append("Font size too small for readability")
+        return issues
+    
+    def _get_typography_recommendations(self, typography_metrics: dict) -> list:
+        """Get typography recommendations."""
+        recs = []
+        if len(typography_metrics.get("contrast_violations", [])) > 0:
+            recs.append("Improve text contrast ratios for better readability")
+        if typography_metrics.get("base_font_size", 16) < 16:
+            recs.append("Increase base font size to at least 16px")
+        if not recs:
+            recs.append("Typography is well-implemented")
+        return recs
+    
+    # Color helper methods
+    def _get_color_summary(self, color_metrics: dict) -> str:
+        """Generate color analysis summary."""
+        score = color_metrics["score"]
+        if score >= 90:
+            return "Excellent color scheme with great harmony and accessibility"
+        elif score >= 70:
+            return "Good color usage with room for minor improvements"
+        else:
+            return "Color scheme needs improvement for better visual appeal"
+    
+    def _get_color_issues(self, color_metrics: dict) -> list:
+        """Get color issues."""
+        issues = []
+        if color_metrics.get("color_count", 0) > 8:
+            issues.append("Too many colors used, may appear cluttered")
+        if len(color_metrics.get("contrast_violations", [])) > 0:
+            issues.append("Color contrast issues detected")
+        return issues
+    
+    def _get_color_recommendations(self, color_metrics: dict) -> list:
+        """Get color recommendations."""
+        recs = []
+        if color_metrics.get("color_count", 0) > 6:
+            recs.append("Reduce color palette to 5-6 main colors for better cohesion")
+        if len(color_metrics.get("contrast_violations", [])) > 0:
+            recs.append("Improve color contrast for accessibility compliance")
+        if not recs:
+            recs.append("Color scheme is well-balanced")
+        return recs
+    
+    # Layout helper methods
+    def _get_layout_summary(self, layout_metrics: dict) -> str:
+        """Generate layout analysis summary."""
+        score = layout_metrics["score"]
+        if score >= 90:
+            return "Excellent layout with proper spacing and visual hierarchy"
+        elif score >= 70:
+            return "Good layout structure with some areas for refinement"
+        else:
+            return "Layout needs significant improvement for better user experience"
+    
+    def _get_layout_issues(self, layout_metrics: dict) -> list:
+        """Get layout issues."""
+        issues = []
+        if layout_metrics.get("whitespace_ratio", 0) < 0.3:
+            issues.append("Insufficient whitespace, layout appears cramped")
+        if not layout_metrics.get("visual_balance", {}).get("balanced", True):
+            issues.append("Visual elements appear unbalanced")
+        return issues
+    
+    def _get_layout_recommendations(self, layout_metrics: dict) -> list:
+        """Get layout recommendations."""
+        recs = []
+        if layout_metrics.get("whitespace_ratio", 0) < 0.3:
+            recs.append("Add more whitespace to improve visual breathing room")
+        if len(layout_metrics.get("grid_violations", [])) > 0:
+            recs.append("Improve grid alignment for more professional appearance")
+        if not recs:
+            recs.append("Layout structure is well-organized")
+        return recs
+    
+    # Responsiveness helper methods
+    def _get_responsiveness_summary(self, resp_metrics: dict) -> str:
+        """Generate responsiveness analysis summary."""
+        score = resp_metrics["score"]
+        if score >= 90:
+            return "Excellent mobile responsiveness and cross-device compatibility"
+        elif score >= 70:
+            return "Good responsive design with minor mobile optimizations needed"
+        else:
+            return "Poor mobile experience requiring significant responsive improvements"
+    
+    def _get_responsiveness_issues(self, resp_metrics: dict) -> list:
+        """Get responsiveness issues."""
+        issues = []
+        if not resp_metrics.get("viewport_meta", False):
+            issues.append("Missing viewport meta tag")
+        scaling_issues = len(resp_metrics.get("image_scaling_issues", []))
+        if scaling_issues > 5:
+            issues.append(f"{scaling_issues} images with scaling problems")
+        return issues
+    
+    def _get_responsiveness_recommendations(self, resp_metrics: dict) -> list:
+        """Get responsiveness recommendations."""
+        recs = []
+        if not resp_metrics.get("viewport_meta", False):
+            recs.append("Add proper viewport meta tag for mobile compatibility")
+        if len(resp_metrics.get("image_scaling_issues", [])) > 0:
+            recs.append("Optimize images for responsive scaling")
+        if len(resp_metrics.get("touch_target_violations", [])) > 0:
+            recs.append("Increase touch target sizes for better mobile usability")
+        if not recs:
+            recs.append("Responsive design is well-implemented")
+        return recs
+    
+    # Accessibility helper methods
+    def _get_accessibility_summary(self, a11y_metrics: dict) -> str:
+        """Generate accessibility analysis summary."""
+        score = a11y_metrics["score"]
+        if score >= 90:
+            return "Excellent accessibility compliance with inclusive design"
+        elif score >= 70:
+            return "Good accessibility with some areas for improvement"
+        else:
+            return "Poor accessibility requiring immediate attention for compliance"
+    
+    def _get_accessibility_issues(self, a11y_metrics: dict) -> list:
+        """Get accessibility issues."""
+        issues = []
+        missing_alt = len(a11y_metrics.get("missing_alt_text", []))
+        if missing_alt > 0:
+            issues.append(f"{missing_alt} images missing alt text")
+        aria_violations = len(a11y_metrics.get("aria_violations", []))
+        if aria_violations > 0:
+            issues.append(f"{aria_violations} ARIA violations")
+        return issues
+    
+    def _get_accessibility_recommendations(self, a11y_metrics: dict) -> list:
+        """Get accessibility recommendations."""
+        recs = []
+        if len(a11y_metrics.get("missing_alt_text", [])) > 0:
+            recs.append("Add descriptive alt text to all images")
+        if len(a11y_metrics.get("aria_violations", [])) > 0:
+            recs.append("Fix ARIA violations for screen reader compatibility")
+        if len(a11y_metrics.get("semantic_html_issues", [])) > 0:
+            recs.append("Improve semantic HTML structure")
+        if not recs:
+            recs.append("Accessibility implementation is compliant")
+        return recs
 
 
 # Global service instance

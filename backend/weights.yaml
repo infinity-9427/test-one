@@ -1,0 +1,19 @@
+# Design Analysis Scoring Weights Configuration
+# These weights determine how each category contributes to the overall score
+
+weights:
+  typography: 0.25      # 25% - Font choices, readability, hierarchy
+  color: 0.20          # 20% - Color scheme, harmony, contrast
+  layout: 0.25         # 25% - Visual hierarchy, spacing, alignment
+  responsiveness: 0.15  # 15% - Mobile compatibility, viewport handling
+  accessibility: 0.15   # 15% - A11y compliance, semantic HTML
+
+# Scoring thresholds for quality assessment
+thresholds:
+  excellent: 90    # 90-100 points
+  good: 70        # 70-89 points  
+  fair: 50        # 50-69 points
+  poor: 0         # 0-49 points
+
+# Version for compatibility tracking
+version: "1.0"

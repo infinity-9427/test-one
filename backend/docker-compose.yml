@@ -1,15 +1,17 @@
+
 services:
-  # Ollama service for Llama3
   ollama:
     image: ollama/ollama:latest
-    container_name: website-scorer-ollama
+    container_name: website_scorer_ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    env_file: .env
     environment:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_ORIGINS=*
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "ollama", "list"]
@@ -18,64 +20,58 @@ services:
       retries: 5
       start_period: 60s
 
-  # FastAPI backend service
+  # Model puller service - automatically pulls the model from .env
+  model_puller:
+    image: ollama/ollama:latest
+    container_name: website_scorer_model_puller
+    volumes:
+      - ollama_data:/root/.ollama
+    env_file: .env
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["sh", "-c"]
+    command: >
+      "echo 'Pulling model: ${OLLAMA_MODEL}' &&
+       ollama pull ${OLLAMA_MODEL} &&
+       echo 'Model ${OLLAMA_MODEL} successfully downloaded.'"
+
+  # FastAPI backend (web design scorer)
   backend:
     build: .
-    container_name: website-scorer-backend
+    container_name: website_scorer_backend
     ports:
       - "8000:8000"
     volumes:
       - ./cache:/app/cache
       - ./screenshots:/app/screenshots
+    env_file: .env
     environment:
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-phi4}
-      - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT:-240}
-      - ENVIRONMENT=${ENVIRONMENT:-local}
-      - DEBUG=${DEBUG:-true}
-      - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT}
+      - ENVIRONMENT=${ENVIRONMENT}
+      - DEBUG=${DEBUG}
+      - CACHE_ENABLED=${CACHE_ENABLED}
       - CACHE_DIR=/app/cache
-      - PLAYWRIGHT_HEADLESS=${PLAYWRIGHT_HEADLESS:-true}
-      - PLAYWRIGHT_TIMEOUT=${PLAYWRIGHT_TIMEOUT:-30000}
+      - PLAYWRIGHT_HEADLESS=${PLAYWRIGHT_HEADLESS}
+      - PLAYWRIGHT_TIMEOUT=${PLAYWRIGHT_TIMEOUT}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - UPLOAD_FOLDER=${UPLOAD_FOLDER}
     depends_on:
       ollama:
         condition: service_healthy
+      model_puller:
+        condition: service_completed_successfully
     restart: unless-stopped
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-  # Initialize Ollama with specified model from .env
-  ollama-init:
-    image: ollama/ollama:latest
-    container_name: website-scorer-ollama-init
-    depends_on:
-      ollama:
-        condition: service_healthy
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_HOST=ollama:11434
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-phi4}
-    entrypoint: >
-      sh -c "
-        echo 'Waiting for Ollama to be ready...' &&
-        sleep 10 &&
-        echo 'Checking if model $${OLLAMA_MODEL} is already available...' &&
-        if ollama list | grep -q $${OLLAMA_MODEL}; then
-          echo 'Model $${OLLAMA_MODEL} already exists, skipping download.'
-        else
-          echo 'Pulling model: $${OLLAMA_MODEL}...' &&
-          ollama pull $${OLLAMA_MODEL} &&
-          echo 'Model $${OLLAMA_MODEL} successfully downloaded!'
-        fi &&
-        echo 'Available models:' &&
-        ollama list
-      "
-    restart: "no"
 
 volumes:
   ollama_data:
     driver: local
-
-networks:
-  default:
-    name: website-scorer-network

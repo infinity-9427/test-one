@@ -24,6 +24,7 @@ dependencies = [
     "tinycss2>=1.2.0",
     "colorthief>=0.2.1",
     "webcolors>=1.13",
+    "pyyaml>=6.0.1",
 ]
 
 [build-system]
