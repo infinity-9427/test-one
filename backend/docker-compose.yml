@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Ollama service for Llama3
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FastAPI backend service
+  backend:
+    build: .
+    container_name: website-scorer-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    environment:
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - ENVIRONMENT=development
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Initialize Ollama with Llama3 model
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: >
+      sh -c "
+        echo 'Pulling Llama3 model...' &&
+        ollama pull llama3 &&
+        echo 'Llama3 model ready!'
+      "
+    environment:
+      - OLLAMA_HOST=ollama:11434
+
+volumes:
+  ollama_data:

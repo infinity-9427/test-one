@@ -52,6 +52,13 @@ share/python-wheels/
 MANIFEST
 
 # Virtual environments
+/frontend/.env.local
+/frontend/.env.prod
+/frontend/.env
+/backend/.env
+/backend/.env.local
+/backend/.env.prod
+# Common virtual environment directories
 .env
 .venv
 env/
@@ -198,3 +205,6 @@ temp/
 *.njsproj
 *.sln
 *.sw?
+
+# docs
+docs.md
