@@ -532,36 +532,46 @@ class RuleBasedAnalyzer:
             # Create metrics container
             metrics = DesignMetrics()
             
-            # Run all analyses with individual error handling
+            # Run all analyses with strict error handling - no fallbacks
+            failed_analyses = []
+            
             try:
                 metrics.typography = self._analyze_typography(html_content)
             except Exception as e:
-                print(f"Typography analysis failed: {e}, using defaults")
-                metrics.typography = {"score": 50, "error": str(e)}
+                print(f"Typography analysis failed: {e}")
+                failed_analyses.append(f"Typography: {str(e)}")
             
             try:
                 metrics.color = self._analyze_colors(screenshot_path)
             except Exception as e:
-                print(f"Color analysis failed: {e}, using defaults")
-                metrics.color = {"score": 50, "error": str(e)}
+                print(f"Color analysis failed: {e}")
+                failed_analyses.append(f"Color: {str(e)}")
             
             try:
                 metrics.layout = self._analyze_layout_whitespace(screenshot_path)
             except Exception as e:
-                print(f"Layout analysis failed: {e}, using defaults")
-                metrics.layout = {"score": 50, "error": str(e)}
+                print(f"Layout analysis failed: {e}")
+                failed_analyses.append(f"Layout: {str(e)}")
             
             try:
                 metrics.responsiveness = self._analyze_responsiveness()
             except Exception as e:
-                print(f"Responsiveness analysis failed: {e}, using defaults")
-                metrics.responsiveness = {"score": 50, "error": str(e)}
+                print(f"Responsiveness analysis failed: {e}")
+                failed_analyses.append(f"Responsiveness: {str(e)}")
             
             try:
                 metrics.accessibility = self._analyze_accessibility()
             except Exception as e:
-                print(f"Accessibility analysis failed: {e}, using defaults")
-                metrics.accessibility = {"score": 50, "error": str(e)}
+                print(f"Accessibility analysis failed: {e}")
+                failed_analyses.append(f"Accessibility: {str(e)}")
+            
+            # If multiple core analyses failed, fail the entire analysis
+            if len(failed_analyses) >= 3:
+                raise Exception(f"Critical analysis failure - multiple components failed: {'; '.join(failed_analyses)}")
+            
+            # If some analyses failed, log but continue (partial results are still valuable)
+            if failed_analyses:
+                print(f"Partial analysis - some components failed: {'; '.join(failed_analyses)}")
             
             return metrics
             

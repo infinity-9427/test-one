@@ -107,17 +107,17 @@ class GoogleSheetsService:
             return
             
         headers = [
-            "Timestamp", "Analysis ID", "URL", "Analyzed At", "Overall Score",
+            "Analysis ID", "URL", "Analyzed At", "Overall Score",
             "Typography Score", "Color Score", "Layout Score", "Responsiveness Score", 
             "Accessibility Score", "Desktop Screenshot", "Mobile Screenshot", 
-            "Analysis Duration (s)", "AI Summary"
+            "Desktop Thumbnail", "Mobile Thumbnail", "Analysis Duration (s)", "AI Summary"
         ]
         
         try:
             self._worksheet.append_row(headers)
             
             # Format headers row
-            self._worksheet.format('A1:N1', {
+            self._worksheet.format('A1:O1', {
                 'textFormat': {'bold': True},
                 'backgroundColor': {'red': 0.8, 'green': 0.8, 'blue': 0.8}
             })
@@ -177,10 +177,9 @@ class GoogleSheetsService:
             llm_analysis = analysis_result.get("llm_analysis", {})
             ai_summary = llm_analysis.get("content", "")[:500] + "..." if len(llm_analysis.get("content", "")) > 500 else llm_analysis.get("content", "")
             
-            # Prepare row data (14 columns to match headers)
-            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Prepare row data (15 columns to match headers)
+            # No timestamp column - starts directly with analysis_id
             row_data = [
-                current_timestamp,
                 analysis_id,
                 url,
                 analyzed_at,
@@ -192,6 +191,8 @@ class GoogleSheetsService:
                 round(accessibility_score, 2),
                 desktop_url,
                 mobile_url,
+                desktop_url,  # Desktop Thumbnail (same as screenshot for now)
+                mobile_url,   # Mobile Thumbnail (same as screenshot for now)
                 round(analysis_duration, 2),
                 ai_summary
             ]
@@ -259,7 +260,6 @@ class GoogleSheetsService:
                 ai_summary = llm_analysis.get("content", "")[:500] + "..." if len(llm_analysis.get("content", "")) > 500 else llm_analysis.get("content", "")
                 
                 row_data = [
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     analysis_id,
                     url,
                     analyzed_at,
@@ -271,6 +271,8 @@ class GoogleSheetsService:
                     round(accessibility_score, 2),
                     desktop_url,
                     mobile_url,
+                    desktop_url,  # Desktop Thumbnail (same as screenshot for now)
+                    mobile_url,   # Mobile Thumbnail (same as screenshot for now)
                     round(analysis_duration, 2),
                     ai_summary
                 ]
