@@ -28,6 +28,7 @@ dist/
 next-env.d.ts
 
 # Python
+/backend/cache/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -206,7 +207,7 @@ temp/
 *.sln
 *.sw?
 
-# Google Cloud & API credentials (SENSITIVE - NEVER COMMIT)
+# Google Cloud & API credentials 
 /backend/credentials/
 /frontend/credentials/
 credentials/
@@ -234,5 +235,6 @@ cloudinary-*.json
 aws-credentials*
 gcp-credentials*
 
-# docs
+# Documentation (project-specific)
 doc.md
+PROJECT_OVERVIEW.md

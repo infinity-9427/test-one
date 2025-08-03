@@ -52,8 +52,6 @@ class MasterAnalysisRequest(BaseModel):
     url: HttpUrl
     auto_log_to_sheets: bool = True
     include_mobile: bool = True
-    include_ai_analysis: bool = True
-    store_cloudinary: bool = True
 
 
 @router.post("/analyze-complete", response_model=AnalysisResult)
@@ -65,11 +63,12 @@ async def master_analyze(
     Complete website analysis workflow in a single endpoint.
     
     Orchestrates the entire process with parallel execution and graceful degradation:
-    1. Takes screenshots (desktop + mobile) in parallel
-    2. Runs AI and rule-based analysis sequentially 
+    1. Takes screenshots (desktop + mobile) in parallel with cloud upload
+    2. Runs comprehensive AI and rule-based analysis 
     3. Uploads images and logs to sheets in background
     4. Returns complete analysis data immediately
     
+    AI analysis and cloud storage are always enabled for complete functionality.
     Perfect for frontend integration - just send URL, get everything back.
     """
     analysis_id = f"master_{int(datetime.now().timestamp())}"
@@ -92,15 +91,15 @@ async def master_analyze(
     
     try:
         # Step 1: Fire screenshots with integrated upload (desktop + mobile)
-        logger.info(f"[{analysis_id}] Capturing screenshots with storage...")
+        logger.info(f"[{analysis_id}] Capturing screenshots with cloud storage...")
         logger.info(f"[{analysis_id}] DEBUG: Using capture_and_store_both_viewports method")
-        logger.info(f"[{analysis_id}] DEBUG: store_cloudinary={request.store_cloudinary}")
+        logger.info(f"[{analysis_id}] DEBUG: store_cloudinary=True (always enabled)")
         
         try:
             # Use the unified capture method that handles both viewports and uploads
             screenshot_result = await screenshot_storage_service.capture_and_store_both_viewports(
                 url=url_str,
-                upload_to_cloud=request.store_cloudinary
+                upload_to_cloud=True  # Always upload to cloud for complete analysis
             )
             
             logger.info(f"[{analysis_id}] DEBUG: Screenshot result type: {type(screenshot_result)}")
@@ -171,8 +170,8 @@ async def master_analyze(
             result.errors["screenshot_capture"] = str(e)
             good_screenshots = []
         
-        # Step 2: If at least one screenshot succeeded, run AI analysis
-        if good_screenshots and request.include_ai_analysis:
+        # Step 2: If at least one screenshot succeeded, run AI analysis (always enabled)
+        if good_screenshots:
             try:
                 logger.info(f"[{analysis_id}] Running AI analysis...")
                 

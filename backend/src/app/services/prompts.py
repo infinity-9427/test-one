@@ -5,6 +5,105 @@ class VisionAnalysisPrompts:
     """Collection of prompts for AI vision analysis."""
     
     @staticmethod
+    def create_pdf_report_prompt(url: str, metrics: Any) -> str:
+        """
+        Create comprehensive prompt for professional PDF report analysis.
+        
+        Args:
+            url: Website URL being analyzed
+            metrics: DesignMetrics object containing rule-based analysis results
+            
+        Returns:
+            Formatted prompt optimized for detailed PDF report generation
+        """
+        
+        # Safe metric access with fallbacks
+        typo_score = getattr(metrics, 'typography', {}).get('score', 0) if hasattr(metrics, 'typography') else 0
+        color_score = getattr(metrics, 'color', {}).get('score', 0) if hasattr(metrics, 'color') else 0
+        layout_score = getattr(metrics, 'layout', {}).get('score', 0) if hasattr(metrics, 'layout') else 0
+        resp_score = getattr(metrics, 'responsiveness', {}).get('score', 0) if hasattr(metrics, 'responsiveness') else 0
+        access_score = getattr(metrics, 'accessibility', {}).get('score', 0) if hasattr(metrics, 'accessibility') else 0
+        
+        prompt = f"""You are a Senior UI/UX Design Consultant creating a comprehensive design audit report for: {url}
+
+**CRITICAL**: Analyze the provided screenshot image and create a professional report suitable for PDF generation.
+
+## REPORT STRUCTURE REQUIRED:
+
+### 1. EXECUTIVE SUMMARY
+- Overall design quality assessment (Professional/Good/Needs Improvement/Poor)
+- Primary visual impression and brand perception
+- Key strengths (2-3 main positives)
+- Critical improvement areas (2-3 main issues)
+
+### 2. DETAILED CATEGORY ANALYSIS
+
+**TYPOGRAPHY & READABILITY** (Current Score: {typo_score}/100)
+- Font choices and brand alignment
+- Text hierarchy effectiveness (H1, H2, body)
+- Readability and contrast assessment
+- Specific improvement recommendations
+
+**COLOR & VISUAL DESIGN** (Current Score: {color_score}/100)
+- Color scheme harmony and accessibility
+- Brand consistency evaluation
+- Visual appeal and professionalism
+- Specific color recommendations
+
+**LAYOUT & STRUCTURE** (Current Score: {layout_score}/100)
+- Grid alignment and spacing consistency
+- Visual hierarchy and information architecture
+- White space utilization
+- Specific layout improvements
+
+**RESPONSIVENESS & UX** (Current Score: {resp_score}/100)
+- Mobile-first design indicators
+- Navigation clarity and usability
+- Call-to-action effectiveness
+- User experience flow assessment
+
+**ACCESSIBILITY & COMPLIANCE** (Current Score: {access_score}/100)
+- Visual accessibility compliance
+- Contrast and readability for all users
+- Inclusive design elements
+- Accessibility improvement priorities
+
+### 3. ACTIONABLE RECOMMENDATIONS
+Provide specific, prioritized improvement suggestions:
+
+**HIGH PRIORITY** (Fix immediately):
+- [Specific actionable item 1]
+- [Specific actionable item 2]
+- [Specific actionable item 3]
+
+**MEDIUM PRIORITY** (Address soon):
+- [Specific actionable item 1]
+- [Specific actionable item 2]
+- [Specific actionable item 3]
+
+**ENHANCEMENT** (Future improvements):
+- [Specific actionable item 1]
+- [Specific actionable item 2]
+
+### 4. VISUAL QUALITY SCORE
+- Overall Design Rating: X/10
+- Professional Readiness: [Ready/Needs Work/Major Revision Required]
+
+**FORMATTING REQUIREMENTS**:
+- Use markdown headers (##, ###) for sections
+- Use bullet points for lists
+- Be specific and actionable in all recommendations
+- Include visual details you observe in the screenshot
+- Keep each section concise but comprehensive
+- Write in professional consulting tone
+
+**IMPORTANT**: Base all analysis on actual visual observation of the screenshot. Reference specific colors, spacing, text, and design elements you can see.
+
+Provide a complete, professional analysis suitable for client presentation."""
+
+        return prompt
+    
+    @staticmethod
     def create_vision_analysis_prompt(url: str, metrics: Any) -> str:
         """
         Create optimized prompt for Llama 3.2-Vision analysis with screenshot.

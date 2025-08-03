@@ -816,9 +816,9 @@ class AIAnalysisService:
                 except Exception as img_err:
                     raise Exception(f"Screenshot file is not readable or corrupted: {str(img_err)}")
                 
-                # VISION ANALYSIS ONLY - LLM must see the screenshot
-                print(f"Starting vision analysis for {url} with screenshot: {desktop_screenshot_path}")
-                prompt = self.prompt_service.create_vision_analysis_prompt(url, metrics)
+                # COMPREHENSIVE VISION ANALYSIS FOR PDF REPORTS
+                print(f"Starting professional design analysis for {url} with screenshot: {desktop_screenshot_path}")
+                prompt = self.prompt_service.create_pdf_report_prompt(url, metrics)
                 llm_analysis = await self.ollama_client.generate_vision_analysis(
                     prompt, desktop_screenshot_path
                 )

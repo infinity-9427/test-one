@@ -4,10 +4,10 @@ AI-powered website design analysis and scoring system with vision-based AI analy
 
 ## 🚀 Features
 
-- **AI Vision Analysis**: Advanced visual design analysis using Ollama Qwen2.5VL model
+- **AI Vision Analysis**: Advanced visual design analysis using Ollama Qwen2.5VL model (always enabled)
 - **Rule-based Scoring**: 5-category analysis (Typography, Color, Layout, Responsiveness, Accessibility)
 - **Multi-Device Screenshots**: Desktop (1200x800) and mobile (375x667) capture
-- **Cloud Integration**: Cloudinary storage with automatic optimization
+- **Cloud Integration**: Cloudinary storage with automatic optimization (always enabled)
 - **Data Logging**: Google Sheets integration for analysis history
 - **Unified API**: Single endpoint for complete analysis workflow
 
@@ -20,6 +20,7 @@ POST /api/v1/master/analyze-complete
 ```
 
 Complete website analysis in a single API call with screenshots, AI insights, scoring, and cloud storage.
+**AI analysis and cloud storage are always enabled** for comprehensive results.
 
 ## 🚀 Quick Start
 
@@ -27,7 +28,7 @@ Complete website analysis in a single API call with screenshots, AI insights, sc
 # Start all services
 docker compose up -d
 
-# Test the API
+# Test the API - Simple request format
 curl -X POST "http://localhost:8000/api/v1/master/analyze-complete" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://github.com"}' | jq .
