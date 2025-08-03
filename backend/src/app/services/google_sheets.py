@@ -68,12 +68,24 @@ class GoogleSheetsService:
             # Get or create the main worksheet
             try:
                 self._worksheet = spreadsheet.worksheet("Website Analysis Results")
+                logger.info("Found existing 'Website Analysis Results' worksheet")
+                
+                # Check if headers exist (simple check)
+                try:
+                    headers = self._worksheet.row_values(1)
+                    if not headers or len(headers) < 10:
+                        logger.info("Headers missing or incomplete, setting up headers")
+                        await self._setup_headers()
+                except Exception:
+                    logger.info("Setting up headers for existing worksheet")
+                    await self._setup_headers()
+                    
             except gspread.WorksheetNotFound:
-                logger.info("Creating 'Website Analysis Results' worksheet")
+                logger.info("Creating new 'Website Analysis Results' worksheet")
                 self._worksheet = spreadsheet.add_worksheet(
                     title="Website Analysis Results",
                     rows=1000,
-                    cols=15
+                    cols=14
                 )
                 await self._setup_headers()
             
@@ -89,41 +101,30 @@ class GoogleSheetsService:
             return False
     
     async def _setup_headers(self):
-        """Set up the header row for the worksheet."""
-        try:
-            headers = [
-                "Timestamp",
-                "Analysis ID",
-                "URL",
-                "Analyzed At",
-                "Overall Score",
-                "Typography Score",
-                "Color Score", 
-                "Layout Score",
-                "Responsiveness Score",
-                "Accessibility Score",
-                "Desktop Screenshot",
-                "Mobile Screenshot",
-                "Desktop Thumbnail",
-                "Mobile Thumbnail",
-                "Analysis Duration (s)",
-                "AI Summary"
-            ]
+        """Setup headers for the Google Sheets worksheet."""
+        if not self._worksheet:
+            logger.error("Worksheet not initialized")
+            return
             
+        headers = [
+            "Timestamp", "Analysis ID", "URL", "Analyzed At", "Overall Score",
+            "Typography Score", "Color Score", "Layout Score", "Responsiveness Score", 
+            "Accessibility Score", "Desktop Screenshot", "Mobile Screenshot", 
+            "Analysis Duration (s)", "AI Summary"
+        ]
+        
+        try:
             self._worksheet.append_row(headers)
             
-            # Format header row
-            self._worksheet.format('A1:P1', {
+            # Format headers row
+            self._worksheet.format('A1:N1', {
                 'textFormat': {'bold': True},
-                'backgroundColor': {'red': 0.9, 'green': 0.9, 'blue': 0.9}
+                'backgroundColor': {'red': 0.8, 'green': 0.8, 'blue': 0.8}
             })
-            
-            logger.info("Google Sheets headers set up successfully")
-            
+            logger.info("Headers setup completed")
         except Exception as e:
-            logger.error(f"Failed to setup Google Sheets headers: {e}")
-            raise
-    
+            logger.error(f"Failed to setup headers: {e}")
+
     async def log_analysis_result(self, analysis_result: Dict[str, Any]) -> bool:
         """
         Log a single analysis result to Google Sheets.
@@ -153,6 +154,9 @@ class GoogleSheetsService:
             overall_score = analysis_result.get("overall_score", 0)
             analysis_duration = analysis_result.get("analysis_duration", 0)
             
+            # Debug logging
+            logger.info(f"Processing Google Sheets data - Analysis ID: {analysis_id}, URL: {url}")
+            
             # Extract score breakdown
             scores = analysis_result.get("scores_breakdown", {})
             typography_score = scores.get("typography", 0)
@@ -166,15 +170,14 @@ class GoogleSheetsService:
             desktop_url = screenshots.get("desktop", {}).get("cloudinary_url", "")
             mobile_url = screenshots.get("mobile", {}).get("cloudinary_url", "")
             
-            # Use direct image URLs instead of =IMAGE() formulas (more reliable)
-            desktop_thumbnail = desktop_url if desktop_url else ""
-            mobile_thumbnail = mobile_url if mobile_url else ""
+            # Debug screenshot URLs
+            logger.info(f"Screenshot URLs - Desktop: {desktop_url}, Mobile: {mobile_url}")
             
             # Extract AI analysis summary
             llm_analysis = analysis_result.get("llm_analysis", {})
             ai_summary = llm_analysis.get("content", "")[:500] + "..." if len(llm_analysis.get("content", "")) > 500 else llm_analysis.get("content", "")
             
-            # Prepare row data
+            # Prepare row data (14 columns to match headers)
             current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             row_data = [
                 current_timestamp,
@@ -189,11 +192,12 @@ class GoogleSheetsService:
                 round(accessibility_score, 2),
                 desktop_url,
                 mobile_url,
-                desktop_thumbnail,
-                mobile_thumbnail,
                 round(analysis_duration, 2),
                 ai_summary
             ]
+            
+            # Debug: Log the exact row data being sent to sheets
+            logger.info(f"Row data for sheets: {row_data}")
             
             # Append to sheet
             self._worksheet.append_row(row_data)
@@ -251,9 +255,6 @@ class GoogleSheetsService:
                 desktop_url = screenshots.get("desktop", {}).get("cloudinary_url", "")
                 mobile_url = screenshots.get("mobile", {}).get("cloudinary_url", "")
                 
-                desktop_thumbnail = f'=IMAGE("{desktop_url}")' if desktop_url else ""
-                mobile_thumbnail = f'=IMAGE("{mobile_url}")' if mobile_url else ""
-                
                 llm_analysis = result.get("llm_analysis", {})
                 ai_summary = llm_analysis.get("content", "")[:500] + "..." if len(llm_analysis.get("content", "")) > 500 else llm_analysis.get("content", "")
                 
@@ -270,8 +271,6 @@ class GoogleSheetsService:
                     round(accessibility_score, 2),
                     desktop_url,
                     mobile_url,
-                    desktop_thumbnail,
-                    mobile_thumbnail,
                     round(analysis_duration, 2),
                     ai_summary
                 ]
