@@ -1,0 +1,21 @@
+{
+  "name": "Design Scoring & Reporting Tool",
+  "short_name": "Design Scorer",
+  "description": "AI-powered website design analysis with professional reports",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/logo-web-engine.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo-web-engine.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
