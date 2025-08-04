@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 12,
-    lineHeight: 1.5,
+    lineHeight: 1.6,
     color: '#4b5563',
     marginBottom: 6,
     paddingLeft: 10,
@@ -94,10 +94,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   footer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 25,
-    right: 25,
     textAlign: 'center',
     fontSize: 10,
     color: '#6b7280',
@@ -106,6 +102,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     padding: 12,
     borderRadius: 6,
+    marginTop: 15,
   },
   scoreBreakdown: {
     flexDirection: 'row',
@@ -171,12 +168,10 @@ const styles = StyleSheet.create({
   },
   aiAnalysisSection: {
     backgroundColor: '#faf5ff',
-    padding: 20,
-    marginBottom: 15,
+    padding: 16,
+    marginBottom: 12,
     borderRadius: 10,
     border: '2px solid #8b5cf6',
-    flex: 1,
-    minHeight: 550,
   },
   llmContent: {
     fontSize: 11,
@@ -257,47 +252,24 @@ const formatCategoryName = (category: string): string => {
   ).join(' ');
 };
 
-// New API Document Component - Enhanced for Multi-Page Reports
+// New API Document Component - Professional Single-Page Layout
 const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => {
   
-  // Helper function to split long content into manageable chunks for PDF pages
-  const splitContentForPages = (content: string, maxLength: number = 3500) => {
-    if (!content || content.length <= maxLength) return [content || 'No content available'];
+  // Format AI analysis content for professional display
+  const formatAnalysisContent = (content: string): string => {
+    if (!content) return 'No AI analysis content available';
     
-    const chunks = [];
-    let currentChunk = '';
-    
-    // Split by sentences first, preserving punctuation and spacing
-    const sentences = content.match(/[^.!?]*[.!?]*\s*/g) || [content];
-    
-    for (const sentence of sentences) {
-      if (!sentence.trim()) continue; // Skip empty sentences
-      
-      // If adding this sentence would exceed the limit and we have content
-      if ((currentChunk + sentence).length > maxLength && currentChunk.length > 0) {
-        chunks.push(currentChunk.trim());
-        currentChunk = sentence;
-      } else {
-        currentChunk += sentence;
-      }
-    }
-    
-    // Always add the remaining content
-    if (currentChunk.trim()) {
-      chunks.push(currentChunk.trim());
-    }
-    
-    // Ensure we return at least one chunk with content
-    if (chunks.length === 0) {
-      chunks.push(content);
-    }
-    
-    return chunks;
+    // Clean up markdown and format for PDF
+    return content
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
+      .replace(/#{1,6}\s/g, '') // Remove header markdown
+      .replace(/\n{3,}/g, '\n\n') // Normalize multiple line breaks
+      .trim();
   };
 
-  const aiAnalysisChunks = data.ai_insights?.llm_analysis?.content 
-    ? splitContentForPages(data.ai_insights.llm_analysis.content)
-    : ['No AI analysis content available'];
+  const analysisContent = data.ai_insights?.llm_analysis?.content 
+    ? formatAnalysisContent(data.ai_insights.llm_analysis.content)
+    : 'No AI analysis content available';
 
   // Helper function to get score color for grade circles
   const getScoreGradeColor = (score: number): string => {
@@ -318,7 +290,7 @@ const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => {
 
   return (
     <Document>
-      {/* First Page - Executive Summary */}
+      {/* Single Page - Complete Report */}
       <Page size="A4" style={styles.page}>
         {/* Enhanced Header */}
         <View style={styles.headerContainer}>
@@ -334,16 +306,13 @@ const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => {
             <Text style={styles.infoItem}>
               Completed: {new Date(data.completed_at).toLocaleDateString()}
             </Text>
-            <Text style={styles.infoItem}>
-              Duration: {data.analysis_duration.toFixed(1)}s
-            </Text>
           </View>
         </View>
 
         {/* Overall Score with Enhanced Design */}
         <View style={[styles.score, { alignItems: 'center' }]}>
           <Text style={{ fontSize: 14, color: '#047857', marginBottom: 8, fontWeight: 'bold' }}>
-            OVERALL DESIGN SCORE
+            Overall Design Score
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 20 }}>
             <Text style={{ fontSize: 42, fontWeight: 'bold', color: '#059669' }}>
@@ -354,29 +323,29 @@ const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => {
             </View>
           </View>
           <Text style={{ fontSize: 12, color: '#065f46', marginTop: 8, textAlign: 'center' }}>
-            {data.overall_score >= 90 ? 'EXCELLENT - Outstanding design quality' :
-             data.overall_score >= 80 ? 'GOOD - Strong design with minor improvements' :
-             data.overall_score >= 70 ? 'FAIR - Decent design with room for enhancement' :
-             data.overall_score >= 60 ? 'POOR - Needs significant improvements' :
-             'CRITICAL - Major design issues require attention'}
+            {data.overall_score >= 90 ? 'Excellent - Outstanding design quality' :
+             data.overall_score >= 80 ? 'Good - Strong design with minor improvements' :
+             data.overall_score >= 70 ? 'Fair - Decent design with room for enhancement' :
+             data.overall_score >= 60 ? 'Poor - Needs significant improvements' :
+             'Critical - Major design issues require attention'}
           </Text>
         </View>
 
         {/* Enhanced Score Breakdown */}
         <View style={styles.scoreBreakdown}>
           <Text style={[styles.subtitle, { textAlign: 'center', color: '#1e293b', marginBottom: 15, fontSize: 16 }]}>
-            CATEGORY PERFORMANCE
+            Category Performance
           </Text>
           {Object.entries(data.scores_breakdown).map(([category, score]) => (
             <View key={category} style={styles.scoreItem}>
               <Text style={styles.scoreItemTitle}>
-                {formatCategoryName(category).toUpperCase()}
+                {formatCategoryName(category)}
               </Text>
               <Text style={[styles.scoreItemValue, { color: getScoreGradeColor(score) }]}>
                 {score}/100
               </Text>
               <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#64748b', marginTop: 2 }}>
-                {getGrade(score)}
+                Grade {getGrade(score)}
               </Text>
             </View>
           ))}
@@ -384,74 +353,45 @@ const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => {
 
         {/* Key Strengths Section */}
         <View style={styles.strengthsSection}>
-          <View style={styles.categoryHeader}>
-            <Text style={styles.categoryIcon}>✅</Text>
-            <Text style={[styles.categoryTitle, { color: '#065f46' }]}>KEY STRENGTHS</Text>
-          </View>
-          {data.ai_insights?.report_summary?.strengths?.slice(0, 4).map((strength: string, index: number) => (
-            <View key={index} style={styles.issueItem}>
-              <View style={[styles.recommendationBullet]} />
-              <Text style={[styles.text, { flex: 1, fontSize: 11 }]}>{strength}</Text>
-            </View>
+          <Text style={[styles.title, { color: '#065f46', backgroundColor: 'transparent', borderBottom: 0, paddingBottom: 4 }]}>
+            Key Strengths
+          </Text>
+          {data.ai_insights?.report_summary?.strengths?.map((strength: string, index: number) => (
+            <Text key={index} style={[styles.text, { marginBottom: 4, paddingLeft: 0 }]}>
+              • {strength}
+            </Text>
           )) || (
             <Text style={styles.text}>No strengths data available</Text>
           )}
         </View>
 
 
-        <Text style={styles.footer}>
-          🤖 AI-Powered Website Design Analysis • Generated by Web Engine • {new Date().toLocaleDateString()} • Page 1
-        </Text>
-      </Page>
-
-      {/* Additional Pages for Detailed AI Analysis */}
-      {aiAnalysisChunks.map((chunk, pageIndex) => (
-        <Page key={pageIndex} size="A4" style={styles.page}>
-          {/* Header for analysis pages */}
-          <View style={[styles.headerContainer, { marginBottom: 20 }]}>
-            <Text style={[styles.header, { fontSize: 20 }]}>
-              AI Analysis {aiAnalysisChunks.length > 1 ? `(Part ${pageIndex + 1})` : ''}
-            </Text>
-          </View>
-          
-          <View style={styles.aiAnalysisSection}>
-            <View style={styles.categoryHeader}>
-              <Text style={styles.categoryTitle}>PROFESSIONAL DESIGN ASSESSMENT</Text>
-            </View>
-            
-            {pageIndex === 0 && data.ai_insights?.llm_analysis && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoItem}>
-                  Model: {data.ai_insights.llm_analysis.model_used || 'AI Vision Analysis'}
-                </Text>
-                {data.ai_insights.llm_analysis.confidence_score && (
-                  <Text style={styles.infoItem}>
-                    Confidence: {Math.round(data.ai_insights.llm_analysis.confidence_score * 100)}%
-                  </Text>
-                )}
-                {!data.ai_insights.llm_analysis.confidence_score && (
-                  <Text style={styles.infoItem}>
-                    Analysis: Vision-based Assessment
-                  </Text>
-                )}
-              </View>
-            )}
-            
-            <View style={styles.divider} />
-            
-            <Text style={styles.llmContent}>
-              {chunk ? 
-                chunk.replace(/\*\*(.*?)\*\*/g, '$1').replace(/#{1,6}\s/g, '').trim() : 
-                'No content available for this page.'
-              }
-            </Text>
-          </View>
-
-          <Text style={styles.footer}>
-            🤖 AI-Powered Website Design Analysis • Generated by Web Engine • {new Date().toLocaleDateString()} • Page {pageIndex + 2}
+        {/* Complete AI Analysis */}
+        <View style={[styles.aiAnalysisSection, { minHeight: 'auto', flex: 'none' }]}>
+          <Text style={[styles.title, { backgroundColor: 'transparent', borderBottom: 0, paddingBottom: 4 }]}>
+            Professional Design Analysis
           </Text>
-        </Page>
-      ))}
+          
+          {data.ai_insights?.llm_analysis && (
+            <View style={[styles.infoRow, { marginBottom: 8 }]}>
+              <Text style={styles.infoItem}>
+                Analysis Model: {data.ai_insights.llm_analysis.model_used || 'AI Vision Analysis'}
+              </Text>
+              {data.ai_insights.llm_analysis.confidence_score && (
+                <Text style={styles.infoItem}>
+                  Confidence Level: {Math.round(data.ai_insights.llm_analysis.confidence_score * 100)}%
+                </Text>
+              )}
+            </View>
+          )}
+          
+          <Text style={[styles.llmContent, { fontSize: 11, lineHeight: 1.6 }]}>
+            {analysisContent}
+          </Text>
+        </View>
+
+
+      </Page>
     </Document>
   );
 };
@@ -668,7 +608,7 @@ Generated: ${(reportData as ReportData).timestamp.toLocaleString()}
         size="sm"
         className="text-xs"
       >
-        📄 Download as Text (Fallback)
+        Download as Text (Fallback)
       </Button>
     </div>
   );

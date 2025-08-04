@@ -691,7 +691,6 @@ class OllamaClient:
                 "stream": False,
                 "options": {
                     "temperature": 0.2,   # Slightly higher for more natural shorter responses
-                    "num_predict": config,  # Use configured token limit (now much lower)
                     "top_p": 0.9,         # Higher for more diverse but focused responses
                     "repeat_penalty": 1.15, # Higher penalty to avoid repetition in short responses
                     "num_ctx": 2048,      # Smaller context window for faster processing
