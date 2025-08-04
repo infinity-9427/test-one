@@ -11,7 +11,7 @@ A comprehensive **automated website design analysis system** that combines AI vi
 ## 🚀 Features
 
 ### Core Capabilities
-- 🤖 **AI Vision Analysis**: Advanced visual design analysis using Qwen2.5VL vision-language model
+- 🤖 **AI Vision Analysis**: Advanced visual design analysis using llava_7b vision-language model
 - 📏 **Rule-Based Scoring**: Comprehensive 5-category analysis (Typography, Color, Layout, Responsiveness, Accessibility)
 - 📱 **Multi-Device Screenshots**: Automated capture for desktop (1200x800) and mobile (375x667) viewports
 - ☁️ **Cloud Storage**: Cloudinary integration with automatic optimization and CDN distribution
