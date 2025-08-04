@@ -5,243 +5,285 @@ import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '
 import { Button } from '@/components/ui/button';
 import { AnalysisResponse } from '@/lib/api-client';
 
+// Design System Colors - Tailwind-based tokens
+const colors = {
+  primary: '#2563eb',      // Tailwind: blue-600
+  primaryDark: '#1e40af',  // Tailwind: blue-700
+  secondary: '#f8fafc',    // Tailwind: slate-50
+  accent: '#10b981',       // Tailwind: emerald-500
+  accentLight: '#f0fdf4',  // Tailwind: emerald-50
+  danger: '#ef4444',       // Tailwind: red-500
+  dangerLight: '#fef2f2',  // Tailwind: red-50
+  warning: '#f59e0b',      // Tailwind: amber-500
+  info: '#3b82f6',         // Tailwind: blue-500
+  infoLight: '#eff6ff',    // Tailwind: blue-50
+  grayLight: '#f1f5f9',    // Tailwind: slate-100
+  gray: '#64748b',         // Tailwind: slate-500
+  grayDark: '#1e293b',     // Tailwind: slate-800
+  white: '#ffffff',
+  black: '#0f172a',        // Tailwind: slate-900
+  success: '#22c55e',      // Tailwind: green-500
+  purple: '#8b5cf6',       // Tailwind: violet-500
+  purpleLight: '#faf5ff',  // Tailwind: violet-50
+  border: '#e2e8f0',       // Tailwind: slate-200
+  borderLight: '#cbd5e1',  // Tailwind: slate-300
+};
+
+// Reusable style patterns
+const cardBase = {
+  padding: 18,
+  borderRadius: 10,
+  backgroundColor: colors.white,
+  border: `2px solid ${colors.border}`,
+  marginBottom: 15,
+};
+
+const sectionBase = {
+  padding: 16,
+  borderRadius: 8,
+  marginBottom: 12,
+};
+
+// Typography scale
+const typography = {
+  h1: { fontSize: 28, fontWeight: 'bold', lineHeight: 1.2 },
+  h2: { fontSize: 20, fontWeight: 'bold', lineHeight: 1.3 },
+  h3: { fontSize: 16, fontWeight: 'bold', lineHeight: 1.4 },
+  body: { fontSize: 12, lineHeight: 1.6 },
+  small: { fontSize: 10, lineHeight: 1.5 },
+  large: { fontSize: 14, lineHeight: 1.5 },
+};
+
 // Create styles for the PDF
 const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
-    backgroundColor: '#ffffff',
-    padding: 25,
+    backgroundColor: colors.secondary,
+    padding: 36,
     fontFamily: 'Helvetica',
   },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 25,
-    paddingBottom: 20,
-    borderBottom: '3px solid #3b82f6',
-    backgroundColor: '#f8fafc',
-    padding: 20,
-    borderRadius: 8,
+    marginBottom: 32,
+    paddingBottom: 24,
+    borderBottom: `4px solid ${colors.primary}`,
+    backgroundColor: colors.grayLight,
+    padding: 24,
+    borderRadius: 12,
   },
   logo: {
-    width: 45,
-    height: 45,
-    marginRight: 18,
+    width: 48,
+    height: 48,
+    marginRight: 20,
   },
   header: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#1e40af',
+    ...typography.h1,
+    color: colors.primaryDark,
     letterSpacing: 0.5,
   },
   section: {
-    margin: 6,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
-    border: '1px solid #e2e8f0',
+    ...sectionBase,
+    backgroundColor: colors.secondary,
+    border: `1px solid ${colors.border}`,
   },
   compactSection: {
-    margin: 6,
+    ...sectionBase,
     padding: 14,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
-    border: '1px solid #e2e8f0',
+    backgroundColor: colors.secondary,
+    border: `1px solid ${colors.border}`,
   },
   title: {
-    fontSize: 18,
+    ...typography.h2,
     marginBottom: 12,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    borderBottom: '2px solid #3b82f6',
+    color: colors.grayDark,
+    borderBottom: `2px solid ${colors.primary}`,
     paddingBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    ...typography.h3,
     marginBottom: 10,
-    fontWeight: 'bold',
-    color: '#374151',
+    color: colors.gray,
     marginTop: 12,
   },
   text: {
-    fontSize: 12,
-    lineHeight: 1.6,
-    color: '#4b5563',
+    ...typography.body,
+    color: colors.gray,
     marginBottom: 6,
     paddingLeft: 10,
   },
   score: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#059669',
+    color: colors.accent,
     textAlign: 'center',
     marginVertical: 20,
-    padding: 20,
-    backgroundColor: '#f0fdf4',
-    borderRadius: 10,
-    border: '2px solid #10b981',
+    padding: 24,
+    backgroundColor: colors.accentLight,
+    borderRadius: 12,
+    border: `2px solid ${colors.accent}`,
   },
   url: {
-    fontSize: 14,
-    color: '#3b82f6',
+    ...typography.large,
+    color: colors.info,
     marginBottom: 15,
     textAlign: 'center',
     fontWeight: 'bold',
-    backgroundColor: '#eff6ff',
-    padding: 8,
-    borderRadius: 6,
+    backgroundColor: colors.infoLight,
+    padding: 12,
+    borderRadius: 8,
   },
   footer: {
     textAlign: 'center',
-    fontSize: 10,
-    color: '#6b7280',
-    borderTop: '2px solid #e5e7eb',
-    paddingTop: 10,
-    backgroundColor: '#f9fafb',
-    padding: 12,
-    borderRadius: 6,
-    marginTop: 15,
+    ...typography.small,
+    color: colors.gray,
+    borderTop: `2px solid ${colors.border}`,
+    paddingTop: 12,
+    backgroundColor: colors.grayLight,
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 20,
   },
   scoreBreakdown: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginVertical: 15,
-    padding: 18,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 10,
-    border: '1px solid #cbd5e1',
+    marginVertical: 20,
+    padding: 22,
+    backgroundColor: colors.grayLight,
+    borderRadius: 12,
+    border: `2px solid ${colors.borderLight}`,
   },
   scoreItem: {
     width: '25%',
     textAlign: 'center',
-    marginBottom: 10,
-    padding: 8,
+    marginBottom: 12,
+    padding: 10,
   },
   scoreItemTitle: {
-    fontSize: 10,
-    color: '#64748b',
-    marginBottom: 4,
+    ...typography.small,
+    color: colors.gray,
+    marginBottom: 6,
     fontWeight: 'bold',
   },
   scoreItemValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: colors.grayDark,
   },
   issueItem: {
     flexDirection: 'row',
-    marginBottom: 6,
-    paddingLeft: 12,
+    marginBottom: 8,
+    paddingLeft: 15,
     alignItems: 'flex-start',
   },
   bullet: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#ef4444',
-    marginRight: 8,
-    marginTop: 6,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: colors.danger,
+    marginRight: 10,
+    marginTop: 7,
   },
   recommendationBullet: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#10b981',
-    marginRight: 8,
-    marginTop: 6,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: colors.accent,
+    marginRight: 10,
+    marginTop: 7,
   },
   strengthsSection: {
-    backgroundColor: '#f0fdf4',
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 8,
-    border: '2px solid #22c55e',
+    backgroundColor: colors.accentLight,
+    padding: 20,
+    marginBottom: 15,
+    borderRadius: 10,
+    border: `2px solid ${colors.success}`,
   },
   improvementsSection: {
-    backgroundColor: '#fef2f2',
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 8,
-    border: '2px solid #ef4444',
+    backgroundColor: colors.dangerLight,
+    padding: 20,
+    marginBottom: 15,
+    borderRadius: 10,
+    border: `2px solid ${colors.danger}`,
   },
   aiAnalysisSection: {
-    backgroundColor: '#faf5ff',
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 10,
-    border: '2px solid #8b5cf6',
+    backgroundColor: colors.purpleLight,
+    padding: 20,
+    marginBottom: 15,
+    borderRadius: 12,
+    border: `2px solid ${colors.purple}`,
   },
   llmContent: {
     fontSize: 11,
-    lineHeight: 1.7,
-    color: '#374151',
-    marginTop: 10,
+    lineHeight: 1.8,
+    color: colors.grayDark,
+    marginTop: 12,
     textAlign: 'justify',
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
-    backgroundColor: '#f1f5f9',
-    padding: 10,
-    borderRadius: 6,
+    marginBottom: 12,
+    backgroundColor: colors.grayLight,
+    padding: 12,
+    borderRadius: 8,
   },
   infoItem: {
     fontSize: 11,
-    color: '#475569',
+    color: colors.gray,
     textAlign: 'center',
     fontWeight: 'bold',
   },
   gradeCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#10b981',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 10,
     alignSelf: 'center',
   },
   gradeText: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: colors.white,
   },
   summaryCard: {
-    backgroundColor: '#ffffff',
-    padding: 18,
-    marginBottom: 15,
-    borderRadius: 10,
-    border: '2px solid #e2e8f0',
+    ...cardBase,
+    backgroundColor: colors.white,
+    padding: 20,
+    marginBottom: 18,
+    borderRadius: 12,
+    border: `2px solid ${colors.border}`,
   },
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottom: '1px solid #e2e8f0',
+    marginBottom: 15,
+    paddingBottom: 10,
+    borderBottom: `1px solid ${colors.border}`,
   },
   categoryIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    fontSize: 18,
+    marginRight: 10,
   },
   categoryTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1e293b',
+    ...typography.h3,
+    color: colors.grayDark,
     flex: 1,
   },
   categoryScore: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#059669',
+    color: colors.accent,
   },
   divider: {
     height: 2,
-    backgroundColor: '#e2e8f0',
-    marginVertical: 15,
+    backgroundColor: colors.border,
+    marginVertical: 18,
   },
 });
 
@@ -332,20 +374,15 @@ const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => {
         </View>
 
         {/* Enhanced Score Breakdown */}
-        <View style={styles.scoreBreakdown}>
-          <Text style={[styles.subtitle, { textAlign: 'center', color: '#1e293b', marginBottom: 15, fontSize: 16 }]}>
-            Category Performance
-          </Text>
+        <View style={styles.section}>
+          <Text style={styles.title}>Category Performance</Text>
           {Object.entries(data.scores_breakdown).map(([category, score]) => (
-            <View key={category} style={styles.scoreItem}>
-              <Text style={styles.scoreItemTitle}>
+            <View key={category} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={styles.text}>
                 {formatCategoryName(category)}
               </Text>
-              <Text style={[styles.scoreItemValue, { color: getScoreGradeColor(score) }]}>
+              <Text style={[styles.text, { fontWeight: 'bold' }]}>
                 {score}/100
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#64748b', marginTop: 2 }}>
-                Grade {getGrade(score)}
               </Text>
             </View>
           ))}
@@ -353,13 +390,16 @@ const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => {
 
         {/* Key Strengths Section */}
         <View style={styles.strengthsSection}>
-          <Text style={[styles.title, { color: '#065f46', backgroundColor: 'transparent', borderBottom: 0, paddingBottom: 4 }]}>
+          <Text style={[styles.title, { color: colors.success, backgroundColor: 'transparent', borderBottom: 0, paddingBottom: 4 }]}>
             Key Strengths
           </Text>
           {data.ai_insights?.report_summary?.strengths?.map((strength: string, index: number) => (
-            <Text key={index} style={[styles.text, { marginBottom: 4, paddingLeft: 0 }]}>
-              • {strength}
-            </Text>
+            <View key={index} style={styles.issueItem}>
+              <View style={[styles.recommendationBullet, { backgroundColor: colors.success }]} />
+              <Text style={[styles.text, { marginBottom: 4, paddingLeft: 0, flex: 1 }]}>
+                {strength}
+              </Text>
+            </View>
           )) || (
             <Text style={styles.text}>No strengths data available</Text>
           )}
@@ -367,25 +407,23 @@ const NewReportDocument: React.FC<{ data: AnalysisResponse }> = ({ data }) => {
 
 
         {/* Complete AI Analysis */}
-        <View style={[styles.aiAnalysisSection, { minHeight: 'auto', flex: 'none' }]}>
-          <Text style={[styles.title, { backgroundColor: 'transparent', borderBottom: 0, paddingBottom: 4 }]}>
-            Professional Design Analysis
-          </Text>
+        <View style={styles.section}>
+          <Text style={styles.title}>Professional Design Analysis</Text>
           
           {data.ai_insights?.llm_analysis && (
-            <View style={[styles.infoRow, { marginBottom: 8 }]}>
-              <Text style={styles.infoItem}>
+            <View style={{ marginBottom: 12 }}>
+              <Text style={[styles.text, { fontWeight: 'bold' }]}>
                 Analysis Model: {data.ai_insights.llm_analysis.model_used || 'AI Vision Analysis'}
               </Text>
               {data.ai_insights.llm_analysis.confidence_score && (
-                <Text style={styles.infoItem}>
+                <Text style={[styles.text, { fontWeight: 'bold' }]}>
                   Confidence Level: {Math.round(data.ai_insights.llm_analysis.confidence_score * 100)}%
                 </Text>
               )}
             </View>
           )}
           
-          <Text style={[styles.llmContent, { fontSize: 11, lineHeight: 1.6 }]}>
+          <Text style={[styles.text, { lineHeight: 1.6, textAlign: 'justify' }]}>
             {analysisContent}
           </Text>
         </View>
@@ -527,92 +565,47 @@ export const PDFReport: React.FC<PDFReportProps> = ({ data, disabled = false }) 
     return `website-report.pdf`;
   };
 
-  // Simple fallback handler for when PDF renderer fails
-  const handleDownloadClick = () => {
-    try {
-      // Create a simple text version as fallback
-      const reportData = isNewFormat ? data as AnalysisResponse : data as ReportData;
-      const textContent = isNewFormat ? 
-        `Website Design Analysis Report
-URL: ${reportData.url}
-Overall Score: ${(reportData as AnalysisResponse).overall_score}/100
-Analysis Date: ${new Date((reportData as AnalysisResponse).completed_at).toLocaleString()}
 
-AI Analysis Content:
-${(reportData as AnalysisResponse).ai_insights?.llm_analysis?.content || 'No analysis content available'}
-` : 
-        `Website Design Report
-URL: ${reportData.url}
-Overall Score: ${(reportData as ReportData).overallScore}/100
-Generated: ${(reportData as ReportData).timestamp.toLocaleString()}
-`;
-
-      const blob = new Blob([textContent], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `website-report-${Date.now()}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download fallback failed:', error);
-    }
-  };
 
   return (
-    <div className="flex flex-col gap-2">
-      <PDFDownloadLink
-        document={
-          isNewFormat ? 
-            <NewReportDocument data={data as AnalysisResponse} /> : 
-            <LegacyReportDocument data={data as ReportData} />
-        }
-        fileName={getFileName()}
-      >
-        {({ loading, error }) => (
-          <Button 
-            disabled={loading || disabled} 
-            size="lg"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                Generating PDF...
-              </div>
-            ) : error ? (
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.728-.833-2.498 0L4.316 15.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                PDF Error - Use Text Version
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Download PDF Report
-              </div>
-            )}
-          </Button>
-        )}
-      </PDFDownloadLink>
-      
-      {/* Fallback text download button */}
-      <Button 
-        onClick={handleDownloadClick}
-        variant="outline" 
-        size="sm"
-        className="text-xs"
-      >
-        Download as Text (Fallback)
-      </Button>
-    </div>
+    <PDFDownloadLink
+      document={
+        isNewFormat ? 
+          <NewReportDocument data={data as AnalysisResponse} /> : 
+          <LegacyReportDocument data={data as ReportData} />
+      }
+      fileName={getFileName()}
+    >
+      {({ loading, error }) => (
+        <Button 
+          disabled={loading || disabled} 
+          size="lg"
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+              Generating PDF...
+            </div>
+          ) : error ? (
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.728-.833-2.498 0L4.316 15.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              PDF Generation Failed
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Download PDF Report
+            </div>
+          )}
+        </Button>
+      )}
+    </PDFDownloadLink>
   );
 };
 
-// Export both data types for backward compatibility
 export type { ReportData, AnalysisResponse };
