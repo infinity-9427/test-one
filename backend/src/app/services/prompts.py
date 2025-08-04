@@ -4,15 +4,15 @@ from typing import Any
 class PromptConfig:
     """Configuration for AI analysis prompts and limits."""
     
-    # Token limits for different analysis types
-    PDF_REPORT_TOKEN_LIMIT = 2500
-    QUICK_ANALYSIS_TOKEN_LIMIT = 800
-    DETAILED_ANALYSIS_TOKEN_LIMIT = 1800
+    # Token limits for different analysis types (optimized for better analysis)
+    PDF_REPORT_TOKEN_LIMIT = 1500  # Increased for comprehensive analysis
+    QUICK_ANALYSIS_TOKEN_LIMIT = 600  # Increased for better quick analysis
+    DETAILED_ANALYSIS_TOKEN_LIMIT = 1200  # Increased for focused analysis
     
-    # Response length guidelines (characters)
-    PDF_REPORT_MIN_LENGTH = 1500
-    PDF_REPORT_TARGET_LENGTH = 3000
-    QUICK_ANALYSIS_MIN_LENGTH = 400
+    # Response length guidelines (characters) - optimized for completeness
+    PDF_REPORT_MIN_LENGTH = 1200   # Increased for more comprehensive reports
+    PDF_REPORT_TARGET_LENGTH = 2500  # Increased for detailed analysis
+    QUICK_ANALYSIS_MIN_LENGTH = 500  # Increased for better quick responses
     
     # Response structure requirements
     PDF_SECTIONS_REQUIRED = [
@@ -61,14 +61,14 @@ class VisionAnalysisPrompts:
     @staticmethod
     def create_pdf_report_prompt(url: str, metrics: Any) -> str:
         """
-        Create comprehensive prompt for professional PDF report analysis.
+        Create optimized prompt for fast, concise PDF report analysis.
         
         Args:
             url: Website URL being analyzed
             metrics: DesignMetrics object containing rule-based analysis results
             
         Returns:
-            Formatted prompt optimized for detailed PDF report generation
+            Formatted prompt optimized for 160-220 word responses (faster processing)
         """
         
         # Safe metric access with fallbacks
@@ -78,107 +78,71 @@ class VisionAnalysisPrompts:
         resp_score = getattr(metrics, 'responsiveness', {}).get('score', 0) if hasattr(metrics, 'responsiveness') else 0
         access_score = getattr(metrics, 'accessibility', {}).get('score', 0) if hasattr(metrics, 'accessibility') else 0
         
-        prompt = f"""You are a Senior UI/UX Design Consultant creating a comprehensive design audit report for: {url}
+        prompt = f"""**IMPORTANT: You are analyzing a website screenshot. Please look at the image provided and base your analysis on what you can actually see.**
 
-**CRITICAL**: Analyze the provided screenshot image and create a professional report suitable for PDF generation.
+**Website Analysis for: {url}**
 
-**RESPONSE LENGTH REQUIREMENTS**:
-- Target response: {PromptConfig.PDF_REPORT_TARGET_LENGTH} characters ({PromptConfig.PDF_REPORT_TOKEN_LIMIT} tokens max)
-- Minimum response: {PromptConfig.PDF_REPORT_MIN_LENGTH} characters required
-- Be comprehensive but concise - every word must add value
+You are a Senior UI/UX Design Consultant analyzing this website screenshot. Please provide a comprehensive professional design report.
 
-## REPORT STRUCTURE REQUIRED:
+**ANALYSIS REQUIREMENTS:**
+- Look at the provided screenshot image and describe what you see
+- Analyze the visual design, layout, typography, colors, and user experience
+- Target response: {PromptConfig.PDF_REPORT_TARGET_LENGTH} characters
+- Be specific about visual elements you observe in the screenshot
 
-### 1. EXECUTIVE SUMMARY
-- Overall design quality assessment (Professional/Good/Needs Improvement/Poor)
-- Primary visual impression and brand perception
-- Key strengths (2-3 main positives)
-- Critical improvement areas (2-3 main issues)
+**CURRENT DESIGN METRICS (for reference):**
+- Typography Score: {typo_score}/100
+- Color Design Score: {color_score}/100  
+- Layout Score: {layout_score}/100
+- Responsiveness Score: {resp_score}/100
+- Accessibility Score: {access_score}/100
 
-### 2. DETAILED CATEGORY ANALYSIS
+**ANALYSIS STRUCTURE:**
 
-**TYPOGRAPHY & READABILITY** (Current Score: {typo_score}/100)
-- Font choices and brand alignment
-- Text hierarchy effectiveness (H1, H2, body)
-- Readability and contrast assessment
-- Specific improvement recommendations
+## EXECUTIVE SUMMARY
+Provide an overall assessment of the website's design quality based on what you see in the screenshot. Include 2-3 key observations about visual appeal and usability.
 
-**COLOR & VISUAL DESIGN** (Current Score: {color_score}/100)
-- Color scheme harmony and accessibility
-- Brand consistency evaluation
-- Visual appeal and professionalism
-- Specific color recommendations
+## DESIGN CATEGORY ANALYSIS
 
-**LAYOUT & STRUCTURE** (Current Score: {layout_score}/100)
-- Grid alignment and spacing consistency
-- Visual hierarchy and information architecture
-- White space utilization
-- Specific layout improvements
+### Typography & Readability ({typo_score}/100)
+Analyze the fonts, text hierarchy, and readability you observe in the screenshot.
 
-**RESPONSIVENESS & UX** (Current Score: {resp_score}/100)
-- Mobile-first design indicators
-- Navigation clarity and usability
-- Call-to-action effectiveness
-- User experience flow assessment
+### Color Design ({color_score}/100)  
+Evaluate the color scheme, harmony, and visual appeal you can see.
 
-**ACCESSIBILITY & COMPLIANCE** (Current Score: {access_score}/100)
-- Visual accessibility compliance
-- Contrast and readability for all users
-- Inclusive design elements
-- Accessibility improvement priorities
+### Layout & Structure ({layout_score}/100)
+Assess the layout organization, spacing, and visual structure visible in the image.
 
-### 3. ACTIONABLE RECOMMENDATIONS
-Provide specific, prioritized improvement suggestions:
+### Responsiveness & UX ({resp_score}/100)
+Comment on the user interface design and apparent mobile-friendliness.
 
-**HIGH PRIORITY** (Fix immediately):
-- [Specific actionable item 1]
-- [Specific actionable item 2]
-- [Specific actionable item 3]
+### Accessibility ({access_score}/100)
+Evaluate accessibility indicators visible in the design.
 
-**MEDIUM PRIORITY** (Address soon):
-- [Specific actionable item 1]
-- [Specific actionable item 2]
-- [Specific actionable item 3]
+## PRIORITY RECOMMENDATIONS
+Provide 3-4 specific, actionable recommendations based on your visual analysis.
 
-**ENHANCEMENT** (Future improvements):
-- [Specific actionable item 1]
-- [Specific actionable item 2]
-
-### 4. VISUAL QUALITY SCORE
+## FINAL ASSESSMENT
 - Overall Design Rating: X/10
-- Professional Readiness: [Ready/Needs Work/Major Revision Required]
+- Professional Readiness: [Ready for Production / Needs Minor Improvements / Requires Significant Work]
+- Key Strengths: List 2-3 main strengths
+- Main Areas for Improvement: List 2-3 priority areas
 
-**SECTION LENGTH GUIDELINES**:
-- Executive Summary: 3-4 sentences per point (150-200 characters)
-- Each Category Analysis: 2-3 detailed observations (200-300 characters)
-- Recommendations: Specific actionable items (100-150 characters each)
-- Total sections must cover all required categories above
-
-**FORMATTING REQUIREMENTS**:
-- Use markdown headers (##, ###) for sections
-- Use bullet points for lists
-- Be specific and actionable in all recommendations
-- Include visual details you observe in the screenshot
-- Write in professional consulting tone
-- MUST reach minimum {PromptConfig.PDF_REPORT_MIN_LENGTH} characters total
-
-**IMPORTANT**: Base all analysis on actual visual observation of the screenshot. Reference specific colors, spacing, text, and design elements you can see.
-
-Provide a complete, professional analysis suitable for client presentation."""
+**CRITICAL: Base your entire analysis on visual elements you can actually see in the screenshot. Mention specific colors, text, layouts, and design elements that are visible.**"""
 
         return prompt
     
     @staticmethod
     def create_vision_analysis_prompt(url: str, metrics: Any) -> str:
         """
-        Create optimized prompt for Llama 3.2-Vision analysis with screenshot.
+        Create optimized prompt for fast Llama 3.2-Vision analysis with screenshot.
         
         Args:
             url: Website URL being analyzed
             metrics: DesignMetrics object containing rule-based analysis results
             
         Returns:
-            Formatted prompt string for vision analysis
+            Formatted prompt string for concise vision analysis
         """
         
         # Safe metric access with fallbacks
@@ -188,64 +152,39 @@ Provide a complete, professional analysis suitable for client presentation."""
         resp_score = getattr(metrics, 'responsiveness', {}).get('score', 0) if hasattr(metrics, 'responsiveness') else 0
         access_score = getattr(metrics, 'accessibility', {}).get('score', 0) if hasattr(metrics, 'accessibility') else 0
         
-        prompt = f"""You are an expert UI/UX designer with advanced vision capabilities. You are analyzing a SCREENSHOT of this website: {url}
+        prompt = f"""Expert UI/UX designer analyzing screenshot of: {url}
 
-CRITICAL: You MUST look at and analyze the provided screenshot image. Your analysis should be based entirely on what you can SEE in the screenshot.
+**CRITICAL**: Analyze the screenshot and provide concise professional insights.
 
-**RESPONSE LENGTH**: Target {PromptConfig.get_min_length('quick')}-{PromptConfig.DETAILED_ANALYSIS_TOKEN_LIMIT} characters, maximum {PromptConfig.get_token_limit('detailed')} tokens.
+**RESPONSE TARGET**: {PromptConfig.get_min_length('quick')}-{PromptConfig.DETAILED_ANALYSIS_TOKEN_LIMIT} characters, max {PromptConfig.get_token_limit('detailed')} tokens.
 
-VISUAL ANALYSIS REQUIREMENTS (based on what you SEE in the screenshot):
+**FAST ANALYSIS STRUCTURE**:
 
-**1. SCREENSHOT VERIFICATION**:
-- Confirm you can see the website screenshot
-- Describe what you see in the first few lines (header, main content, colors)
+1. **Screenshot Confirmation**: Describe what you see (layout, colors, main elements)
 
-**2. VISUAL LAYOUT ANALYSIS (1-10 scale)**:
-- Overall visual hierarchy visible in the screenshot
-- Grid alignment, spacing consistency, and balance you observe
-- Content organization and readability flow you can see
+2. **Quick Design Assessment (1-10 scale)**:
+   - Visual hierarchy and layout quality
+   - Typography readability and choices
+   - Color harmony and professional appeal
+   - Mobile responsiveness indicators
+   - Overall user experience
 
-**3. TYPOGRAPHY & READABILITY (from what's visible)**:
-- Font choices, sizing, and hierarchy you can observe in the screenshot
-- Text contrast and legibility of all text elements you see
-- Reading flow and content structure visible in the image
+3. **Key Observations**: 3 specific visual strengths or issues you notice
 
-**4. COLOR & VISUAL DESIGN (based on screenshot)**:
-- Color scheme harmony and accessibility visible in the image
-- Contrast ratios and visual emphasis you can see
-- Brand consistency and aesthetic appeal from the screenshot
+4. **Priority Recommendation**: 1 main improvement suggestion
 
-**5. UI/UX ELEMENTS (what you observe in the screenshot)**:
-- Navigation clarity and button design visible
-- Interactive element visibility and accessibility you can see
-- Mobile-responsive design indicators visible
-- Call-to-action effectiveness from what's shown
+**Reference Scores**: Typography: {typo_score} | Color: {color_score} | Layout: {layout_score} | Mobile: {resp_score} | A11y: {access_score}
 
-**6. TECHNICAL OBSERVATIONS (from the screenshot)**:
-- Layout consistency and professional polish visible
-- Visual bugs, alignment issues, or inconsistencies you can see
-- Accessibility compliance indicators visible in the image
+**REQUIREMENT**: Base analysis entirely on visual elements you observe in the screenshot. Mention specific colors, spacing, text, and design details you see.
 
-**AUTOMATED METRICS FOR REFERENCE**:
-Typography: {typo_score}/100 | Color: {color_score}/100 | Layout: {layout_score}/100
-Responsiveness: {resp_score}/100 | Accessibility: {access_score}/100
-
-**DELIVERABLE**: 
-1. START by confirming you can see the screenshot and briefly describe what's visible
-2. Provide specific, actionable feedback based entirely on visual observation
-3. Give a final visual quality score (1-10) based on what you see
-4. Focus ONLY on what you can actually SEE and READ in the screenshot
-
-**IMPORTANT**: Your analysis must demonstrate you're actually looking at the screenshot. Mention specific visual elements, colors, text, and layout details you observe.
-
-Response limit: 600 words."""
+Deliver focused, actionable insights in under 400 words."""
 
         return prompt
     
     @staticmethod
     def create_detailed_vision_prompt(url: str, metrics: Any, rules_content: str = "") -> str:
         """
-        Create a more detailed prompt with custom design rules context.
+        Create optimized detailed prompt for faster response times.
         
         Args:
             url: Website URL being analyzed
@@ -253,10 +192,10 @@ Response limit: 600 words."""
             rules_content: Custom design rules content from rules.md
             
         Returns:
-            Formatted detailed prompt string for vision analysis
+            Formatted detailed prompt string for concise vision analysis
         """
         
-        rules_excerpt = rules_content[:800] if rules_content else "No custom rules loaded"
+        rules_excerpt = rules_content[:400] if rules_content else "No custom rules loaded"
         
         # Safe metric access with fallbacks
         typo_score = getattr(metrics, 'typography', {}).get('score', 0) if hasattr(metrics, 'typography') else 0
@@ -265,101 +204,68 @@ Response limit: 600 words."""
         resp_score = getattr(metrics, 'responsiveness', {}).get('score', 0) if hasattr(metrics, 'responsiveness') else 0
         access_score = getattr(metrics, 'accessibility', {}).get('score', 0) if hasattr(metrics, 'accessibility') else 0
         
-        prompt = f"""You are a senior UI/UX designer with advanced computer vision capabilities analyzing this website screenshot: {url}
+        prompt = f"""Senior UI/UX designer analyzing screenshot: {url}
 
-🎯 MISSION: Provide expert design analysis based EXCLUSIVELY on visual observation of the screenshot.
+🎯 **MISSION**: Provide expert design analysis based on visual observation.
 
-📸 SCREENSHOT ANALYSIS PROTOCOL:
+📸 **ANALYSIS PROTOCOL**:
 
-**STEP 1: VISUAL CONFIRMATION**
-- Explicitly confirm you can see the website screenshot
-- Describe the immediate visual impression (layout structure, dominant colors, content type)
+**STEP 1: Visual Confirmation**
+Confirm you see the screenshot and describe immediate visual impression.
 
-**STEP 2: DESIGN EVALUATION (Rate each 1-10)**
+**STEP 2: Design Assessment (Rate each 1-10)**
 
-🎨 **VISUAL HIERARCHY & LAYOUT**
-- Information architecture clarity from visual structure
-- Grid system adherence and spacing consistency
-- Content flow and visual balance observed
-- White space utilization and breathing room
+🎨 **Layout & Hierarchy**: Structure, spacing, visual balance
+✍️ **Typography**: Font choices, text hierarchy, readability
+🌈 **Color Design**: Scheme harmony, contrast, accessibility
+🖱️ **UI/UX Elements**: Navigation, buttons, user experience
 
-✍️ **TYPOGRAPHY & READABILITY** 
-- Font selection appropriateness for brand/purpose
-- Text size hierarchy effectiveness (H1, H2, body text)
-- Reading flow and text contrast ratios
-- Content density and paragraph structure
+**STEP 3: Key Insights**
+- Top 2 strengths
+- Top 2 improvement areas
+- Overall visual quality score (1-10)
 
-🌈 **COLOR & VISUAL DESIGN**
-- Color scheme harmony and brand consistency
-- Accessibility of color choices (contrast, readability)
-- Visual emphasis and call-to-action prominence
-- Overall aesthetic appeal and professionalism
+**DESIGN RULES**: {rules_excerpt}
 
-🖱️ **UI/UX ELEMENTS**
-- Navigation clarity and intuitive structure
-- Button design and interactive element visibility
-- Mobile responsiveness indicators (if applicable)
-- User experience flow and ease of use
+**CURRENT SCORES**: Typography: {typo_score} | Color: {color_score} | Layout: {layout_score} | Mobile: {resp_score} | A11y: {access_score}
 
-**STEP 3: TECHNICAL ASSESSMENT**
-- Visual consistency across interface elements
-- Potential accessibility issues visible
-- Professional polish and attention to detail
-- Any visual bugs or alignment problems
+**CRITICAL**: Base analysis ONLY on visual elements you observe. Mention specific colors, text, spacing, and layout details you see.
 
-**DESIGN RULES CONTEXT**:
-{rules_excerpt}
-
-**AUTOMATED ANALYSIS REFERENCE**:
-• Typography Score: {typo_score}/100
-• Color Score: {color_score}/100  
-• Layout Score: {layout_score}/100
-• Responsiveness: {resp_score}/100
-• Accessibility: {access_score}/100
-
-**FINAL DELIVERABLE**:
-1. Screenshot confirmation with visual description
-2. Specific design observations and ratings
-3. Top 3 strengths and 3 improvement areas
-4. Overall visual quality score (1-10)
-5. Actionable recommendations
-
-**CRITICAL**: Base analysis ONLY on visual elements you can actually observe in the screenshot. Mention specific colors, text, spacing, and layout details you see.
-
-Target: 500-700 words with precise visual observations."""
+Target: 300-500 words with precise visual observations."""
 
         return prompt
     
     @staticmethod
     def create_quick_vision_prompt(url: str) -> str:
         """
-        Create a quick prompt for basic vision analysis without detailed metrics.
+        Create ultra-fast prompt for basic vision analysis without detailed metrics.
         
         Args:
             url: Website URL being analyzed
             
         Returns:
-            Formatted quick prompt string for basic vision analysis
+            Formatted quick prompt string for rapid analysis
         """
         
         config = PromptConfig.get_token_limit("quick")
         min_length = PromptConfig.get_min_length("quick")
         
-        prompt = f"""Analyze this website screenshot for: {url}
+        prompt = f"""Quick design analysis for: {url}
 
-You are a UX expert. Look at the screenshot and provide:
+**UX Expert rapid assessment. Target: {min_length}-{config*3} characters, max {config} tokens.**
 
-**RESPONSE LIMITS**: {min_length}-{config*4} characters, maximum {config} tokens.
-
-1. **Visual Confirmation**: Confirm you can see the screenshot and describe what's visible
-2. **Quick Assessment**: Rate the design quality (1-10) based on:
-   - Layout and visual hierarchy
-   - Color scheme and typography
+1. **Visual Confirmation**: Describe what you see in the screenshot
+2. **Quick Rating (1-10)**: 
+   - Layout quality and visual hierarchy
+   - Typography and readability
+   - Color scheme and aesthetics
    - Overall user experience
-3. **Key Observations**: 2-3 specific visual elements you notice
-4. **Improvement Suggestion**: 1 main recommendation
+3. **Key Observation**: 1-2 specific visual elements you notice
+4. **Main Suggestion**: 1 priority improvement
 
-Keep it concise but demonstrate you're actually seeing the screenshot by mentioning specific visual details."""
+**REQUIREMENT**: Demonstrate you see the screenshot by mentioning specific visual details (colors, text, layout elements).
+
+Keep concise but impactful - under 200 words."""
 
         return prompt
 

@@ -155,6 +155,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, onStartNew 
       />
 
 
+
       {/* Technical Details */}
       {Object.keys(analysis.errors).length > 0 && (
         <Card>
@@ -210,24 +211,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analysis, onStartNew 
         </CardContent>
       </Card>
 
-      {/* Final CTA */}
-      <div className="text-center">
-        <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Ready to improve your website?
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Use the insights from this analysis to enhance your website&apos;s design and user experience.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            {onStartNew && (
-              <Button variant="outline" onClick={onStartNew}>
-                Analyze Another Website
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 };

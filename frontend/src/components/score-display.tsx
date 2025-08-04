@@ -95,8 +95,13 @@ interface ScoreCardProps {
 }
 
 const ScoreCard: React.FC<ScoreCardProps> = ({ category, score, icon, description }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   return (
-    <div className={`p-4 rounded-lg border ${getScoreBgColor(score)} transition-all hover:shadow-md`}>
+    <div 
+      className={`p-4 rounded-lg border ${getScoreBgColor(score)} transition-all hover:shadow-md cursor-pointer`}
+      onClick={() => setIsExpanded(!isExpanded)}
+    >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className="text-xl">{icon}</span>
@@ -132,6 +137,17 @@ const ScoreCard: React.FC<ScoreCardProps> = ({ category, score, icon, descriptio
           style={{ width: `${score}%` }}
         />
       </div>
+
+      {/* Score interpretation */}
+      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        {score >= 90 ? 'Excellent performance' :
+         score >= 80 ? 'Good with minor improvements' :
+         score >= 70 ? 'Average with room for improvement' :
+         score >= 60 ? 'Below average, needs attention' :
+         'Poor, requires significant work'}
+      </div>
+
+
     </div>
   );
 };
@@ -219,31 +235,58 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({ scores, overallScore, loadi
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Overall Score */}
-        <div className={`text-center p-6 rounded-xl border ${getScoreBgColor(overallScore)}`}>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            Overall Design Score
-          </h3>
-          <div className="flex items-center justify-center gap-3">
-            <div className={`text-6xl font-bold ${getScoreColor(overallScore)}`}>
-              <AnimatedCounter value={overallScore} suffix="/100" />
-            </div>
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white ${
-              overallScore >= 90 ? 'bg-green-500' :
-              overallScore >= 80 ? 'bg-lime-500' :
-              overallScore >= 70 ? 'bg-yellow-500' :
-              overallScore >= 60 ? 'bg-orange-500' : 'bg-red-500'
-            }`}>
-              {getScoreGrade(overallScore)}
-            </div>
+        <div className={`text-center p-8 rounded-xl border ${getScoreBgColor(overallScore)} relative overflow-hidden`}>
+          {/* Background decoration */}
+          <div className="absolute inset-0 opacity-5">
+            <div className="absolute top-4 right-4 text-6xl">📊</div>
+            <div className="absolute bottom-4 left-4 text-4xl">✨</div>
           </div>
           
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-            {overallScore >= 90 ? 'Excellent design quality' :
-             overallScore >= 80 ? 'Good design with minor improvements needed' :
-             overallScore >= 70 ? 'Average design with room for improvement' :
-             overallScore >= 60 ? 'Below average design needs attention' :
-             'Poor design requires significant improvements'}
-          </p>
+          <div className="relative z-10">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              🏆 Overall Design Score
+            </h3>
+            <div className="flex items-center justify-center gap-6 mb-4">
+              <div className={`text-7xl font-bold ${getScoreColor(overallScore)} drop-shadow-lg`}>
+                <AnimatedCounter value={overallScore} suffix="/100" />
+              </div>
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg ${
+                overallScore >= 90 ? 'bg-green-500' :
+                overallScore >= 80 ? 'bg-lime-500' :
+                overallScore >= 70 ? 'bg-yellow-500' :
+                overallScore >= 60 ? 'bg-orange-500' : 'bg-red-500'
+              }`}>
+                {getScoreGrade(overallScore)}
+              </div>
+            </div>
+            
+            {/* Performance indicator */}
+            <div className="mb-4">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Performance Level
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                <div 
+                  className={`h-3 rounded-full transition-all duration-2000 ease-out ${
+                    overallScore >= 90 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                    overallScore >= 80 ? 'bg-gradient-to-r from-lime-400 to-lime-600' :
+                    overallScore >= 70 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                    overallScore >= 60 ? 'bg-gradient-to-r from-orange-400 to-orange-600' : 
+                    'bg-gradient-to-r from-red-400 to-red-600'
+                  }`}
+                  style={{ width: `${overallScore}%` }}
+                />
+              </div>
+            </div>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+              {overallScore >= 90 ? '🌟 Exceptional design quality - Industry leading' :
+               overallScore >= 80 ? '✅ Strong design with professional standards' :
+               overallScore >= 70 ? '👍 Good design foundation with improvement potential' :
+               overallScore >= 60 ? '⚠️ Below average design needs focused attention' :
+               '🚨 Critical design issues require immediate action'}
+            </p>
+          </div>
         </div>
 
         {/* Category Scores */}

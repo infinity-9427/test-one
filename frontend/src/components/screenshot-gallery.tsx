@@ -133,58 +133,76 @@ const ScreenshotGallery: React.FC<ScreenshotGalleryProps> = ({
 
   return (
     <>
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
           <CardTitle className="flex items-center justify-between">
-            📸 Website Screenshots
+            <div className="flex items-center gap-2">
+              📸 Website Screenshots
+              <span className="text-sm font-normal text-gray-600 dark:text-gray-400">
+                ({screenshots.length} captured)
+              </span>
+            </div>
             {websiteUrl && (
               <a 
                 href={websiteUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 bg-white/80 dark:bg-gray-800/80 px-3 py-1 rounded-full border"
               >
-                Visit Site ↗
+                🌐 Visit Site ↗
               </a>
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-6">
+        <CardContent className="p-6">
+          <div className="grid md:grid-cols-2 gap-8">
             {/* Desktop Screenshot */}
             {desktopScreenshot && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-700 dark:text-gray-300">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     🖥️ Desktop View
+                    <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                      Primary
+                    </span>
                   </h3>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                     {desktopScreenshot.width}×{desktopScreenshot.height}
                   </span>
                 </div>
                 
                 <div className="relative group cursor-pointer" onClick={() => openFullSize(desktopScreenshot)}>
-                  <div className="aspect-[4/3] relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+                  <div className="aspect-[4/3] relative overflow-hidden rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 shadow-lg">
                     {imageLoading.desktop && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Loading desktop view...</span>
+                        </div>
                       </div>
                     )}
                     <Image
                       src={getImageUrl(desktopScreenshot, 'desktop')}
                       alt={`Desktop screenshot of ${websiteUrl || 'website'}`}
                       fill
-                      className="object-cover transition-transform group-hover:scale-105"
+                      className="object-cover transition-all duration-300 group-hover:scale-105"
                       onLoadStart={() => handleImageStart('desktop')}
                       onLoad={() => handleImageLoad('desktop')}
                       onError={() => handleImageError('desktop')}
                     />
                     
-                    {/* Hover overlay */}
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                      <Button variant="secondary" size="sm">
-                        🔍 Open Full Size
-                      </Button>
+                    {/* Enhanced hover overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                      <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                        <Button variant="secondary" size="sm" className="bg-white/90 hover:bg-white text-gray-800 font-semibold shadow-lg">
+                          🔍 View Full Size
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Corner indicator */}
+                    <div className="absolute top-3 right-3 bg-blue-500 text-white text-xs px-2 py-1 rounded-full opacity-90">
+                      Desktop
                     </div>
                   </div>
                 </div>
@@ -193,39 +211,52 @@ const ScreenshotGallery: React.FC<ScreenshotGalleryProps> = ({
 
             {/* Mobile Screenshot */}
             {mobileScreenshot && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-700 dark:text-gray-300">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     📱 Mobile View
+                    <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
+                      Responsive
+                    </span>
                   </h3>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                     {mobileScreenshot.width}×{mobileScreenshot.height}
                   </span>
                 </div>
                 
                 <div className="flex justify-center">
-                  <div className="relative group cursor-pointer max-w-[250px]" onClick={() => openFullSize(mobileScreenshot)}>
-                    <div className="aspect-[9/16] relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+                  <div className="relative group cursor-pointer max-w-[280px]" onClick={() => openFullSize(mobileScreenshot)}>
+                    <div className="aspect-[9/16] relative overflow-hidden rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 shadow-lg">
                       {imageLoading.mobile && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-6 h-6 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
+                            <span className="text-xs text-gray-600 dark:text-gray-400">Loading mobile view...</span>
+                          </div>
                         </div>
                       )}
                       <Image
                         src={getImageUrl(mobileScreenshot, 'mobile')}
                         alt={`Mobile screenshot of ${websiteUrl || 'website'}`}
                         fill
-                        className="object-cover transition-transform group-hover:scale-105"
+                        className="object-cover transition-all duration-300 group-hover:scale-105"
                         onLoadStart={() => handleImageStart('mobile')}
                         onLoad={() => handleImageLoad('mobile')}
                         onError={() => handleImageError('mobile')}
                       />
                       
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <Button variant="secondary" size="sm">
-                          🔍 Open Full Size
-                        </Button>
+                      {/* Enhanced hover overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                        <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                          <Button variant="secondary" size="sm" className="bg-white/90 hover:bg-white text-gray-800 font-semibold shadow-lg">
+                            🔍 View Full Size
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {/* Corner indicator */}
+                      <div className="absolute top-3 right-3 bg-green-500 text-white text-xs px-2 py-1 rounded-full opacity-90">
+                        Mobile
                       </div>
                     </div>
                   </div>
@@ -234,11 +265,19 @@ const ScreenshotGallery: React.FC<ScreenshotGalleryProps> = ({
             )}
           </div>
 
-          {/* Screenshot info */}
-          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
-              💡 Click on any screenshot to open the full-size image in a new tab. Screenshots are optimized and stored securely.
-            </p>
+          {/* Enhanced info section */}
+          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+            <div className="flex items-start gap-3">
+              <div className="text-2xl">💡</div>
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                  Interactive Screenshots
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Click on any screenshot to view the full-resolution image. These captures show how your website appears to visitors on different devices.
+                </p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

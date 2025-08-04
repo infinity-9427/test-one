@@ -161,25 +161,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Backend Health Status */}
-          {backendHealth.status !== 'unknown' && (
-            <div className="mb-6">
-              <div className={`p-3 rounded-lg text-center text-sm ${
-                backendHealth.status === 'healthy' 
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
-                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
-              }`}>
-                <span className="font-medium">
-                  {backendHealth.status === 'healthy' ? '✅ Service Online' : '❌ Service Unavailable'}
-                </span>
-                {backendHealth.lastChecked && (
-                  <span className="ml-2 opacity-75">
-                    • Last checked: {backendHealth.lastChecked.toLocaleTimeString()}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Main Analysis Card */}
           <Card className="mb-8 shadow-lg">

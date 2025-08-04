@@ -590,12 +590,29 @@ class OllamaClient:
         self.timeout = settings.ollama_timeout
     
     async def check_health(self) -> bool:
-        """Check if Ollama is available."""
+        """Check if Ollama is available and the model is loaded."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Check if Ollama is running
                 response = await client.get(f"{self.base_url}/api/tags")
-                return response.status_code == 200
-        except Exception:
+                if response.status_code != 200:
+                    print(f"Ollama API not responding: {response.status_code}")
+                    return False
+                
+                # Check if our model is available
+                models = response.json()
+                model_names = [model['name'] for model in models.get('models', [])]
+                
+                if self.model not in model_names:
+                    print(f"Model {self.model} not found. Available models: {model_names}")
+                    print(f"You may need to pull the model: docker exec website_scorer_ollama ollama pull {self.model}")
+                    return False
+                
+                print(f"Ollama health check passed. Model {self.model} is available.")
+                return True
+                
+        except Exception as e:
+            print(f"Ollama health check failed: {e}")
             return False
     
     def _encode_image_base64(self, image_path: str) -> str:
@@ -666,20 +683,20 @@ class OllamaClient:
             encoding_time = (datetime.now() - encoding_start).total_seconds()
             print(f"Image encoding completed in {encoding_time:.2f}s")
             
-            # Prepare payload for vision model - OPTIMIZED FOR COMPREHENSIVE PDF REPORTS
+            # Prepare payload for vision model - OPTIMIZED FOR FAST, CONCISE RESPONSES
             payload = {
                 "model": self.model,
                 "prompt": prompt,
                 "images": [image_base64],
                 "stream": False,
                 "options": {
-                    "temperature": 0.1,   # Low randomness for consistent analysis
-                    "num_predict": config,  # Use configured token limit
-                    "top_p": 0.8,         # Balanced focus for detailed analysis
-                    "repeat_penalty": 1.1, # Slight penalty to avoid repetition
-                    "num_ctx": 4096,      # Larger context window for complex prompts
+                    "temperature": 0.2,   # Slightly higher for more natural shorter responses
+                    "num_predict": config,  # Use configured token limit (now much lower)
+                    "top_p": 0.9,         # Higher for more diverse but focused responses
+                    "repeat_penalty": 1.15, # Higher penalty to avoid repetition in short responses
+                    "num_ctx": 2048,      # Smaller context window for faster processing
                     "num_gpu": 1,         # Force GPU usage
-                    "num_thread": 8,      # More CPU threads
+                    "num_thread": 6,      # Fewer threads for better GPU utilization
                     "use_mmap": True,     # Memory mapping for speed
                     "use_mlock": True     # Lock model in memory
                 }
@@ -689,7 +706,7 @@ class OllamaClient:
             
             # Track API call time separately
             api_start = datetime.now()
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(connect=30.0, read=180.0, write=30.0, pool=30.0)) as client:
                 response = await client.post(
                     f"{self.base_url}/api/generate",
                     json=payload
@@ -812,10 +829,6 @@ class AIAnalysisService:
             llm_error = None
             
             try:
-                # Check Ollama availability
-                if not await self.ollama_client.check_health():
-                    raise Exception("AI vision analysis service is currently unavailable")
-                
                 # REQUIRE desktop screenshot for vision analysis - this is our main feature
                 desktop_screenshot_path = screenshot_data.get("desktop", {}).get("local_path")
                 
@@ -831,6 +844,10 @@ class AIAnalysisService:
                             raise Exception("Invalid or corrupted screenshot file")
                 except Exception as img_err:
                     raise Exception(f"Screenshot file is not readable or corrupted: {str(img_err)}")
+                
+                # First check if Ollama and model are available
+                if not await self.ollama_client.check_health():
+                    raise Exception("AI vision analysis service is currently unavailable. Please ensure Ollama is running and the model is loaded.")
                 
                 # COMPREHENSIVE VISION ANALYSIS FOR PDF REPORTS
                 print(f"Starting professional design analysis for {url} with screenshot: {desktop_screenshot_path}")
